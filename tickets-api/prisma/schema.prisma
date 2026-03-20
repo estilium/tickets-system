@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  REQUESTER
+  AGENT
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password String
+  role      Role     @default(REQUESTER)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  assignedTickets Ticket[] @relation("TicketAssignedTo")
+
+
+
+  ticketsRequested Ticket[]
+  messages         TicketMessage[]
+}
+
+model Ticket {
+  id          String       @id @default(uuid())
+  title       String
+  description String
+  status      TicketStatus @default(OPEN)
+  priority    Priority     @default(NORMAL)
+  closedAt DateTime?
+
+
+  requester   User   @relation(fields: [requesterId], references: [id])
+  requesterId String
+
+  messages TicketMessage[]
+  
+  attachments TicketAttachment[]
+
+  assignedToId String?
+  assignedTo   User? @relation("TicketAssignedTo", fields: [assignedToId], references: [id])
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TicketMessage {
+  id      String @id @default(uuid())
+  content String
+
+  ticket   Ticket @relation(fields: [ticketId], references: [id])
+  ticketId String
+
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId String
+
+  createdAt DateTime @default(now())
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+model TicketAttachment {
+  id        String   @id @default(uuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  filename  String
+  original  String
+  mime      String
+  size      Int
+  url       String
+
+  createdAt DateTime @default(now())
+}
