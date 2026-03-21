@@ -1,90 +1,75 @@
-import { useEffect, useState } from "react"
-import { api } from "../api/api"
+import { useEffect, useState } from "react";
+import { api } from "../api/api";
+
+import type { DashboardData, MTTR } from "../types/metrics";
+import MTTRChart from "../components/MTTRChart";
+import TicketsByStatusChart from "../components/TicketsByStatusChart";
+
+
+type CardProps = {
+  title: string;
+  value: number;
+};
+
+function Card({ title, value }: CardProps) {
+  return (
+    <div className="bg-white shadow rounded p-4">
+      <h2 className="text-gray-500">{title}</h2>
+      <p className="text-2xl font-bold">{value}</p>
+    </div>
+  );
+}
 
 export default function Dashboard() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [mttr, setMttr] = useState<MTTR[]>([]);
+  const [statusData, setStatusData] = useState([]);
 
-  const [data, setData] = useState<any>(null)
-  const [mttrData, setMttrData] = useState<any>(null)
+  const loadData = async () => {
+    try {
+ const [dashboardRes, mttrRes, statusRes] = await Promise.all([
+  api.get("/metrics/dashboard"),
+  api.get("/metrics/mttr-by-day?days=7"),
+  api.get("/metrics/tickets-by-status"),
+]);
 
-  async function load() {
-    const res = await api.get("/metrics/dashboard")
-    setData(res.data.data)
-  }
+      setData(dashboardRes.data.data);
+      setStatusData(statusRes.data.data);
+      setMttr(mttrRes.data.data);
+    } catch (err) {
+      console.error("Error loading dashboard:", err);
+    }
+  };
 
-useEffect(()=>{
-  load()
-  loadMttr()
-},[])
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  if (!data) return <div>Loading...</div>
-
-  async function loadMttr() {
-  try {
-    const res = await api.get("/metrics/mttr?days=7")
-    setMttrData(res.data.data)
-  } catch (err) {
-    console.error(err)
-  }
-}
-{mttrData && (
-  <div className="bg-white p-4 rounded shadow">
-
-    <h2 className="text-lg font-semibold mb-2">
-      MTTR (Last 7 days)
-    </h2>
-
-    {mttrData.map((d:any)=>(
-      <div key={d.date} className="flex justify-between text-sm border-b py-1">
-
-        <span>{d.date}</span>
-        <span>{Math.round(d.mttr)} min</span>
-
-      </div>
-    ))}
-
-  </div>
-)}
-
+  if (!data) return <p>Cargando dashboard...</p>;
 
   return (
-
-    
-    <div className="p-6 space-y-6">
-
+    <div className="p-4 space-y-6">
       <h1 className="text-2xl font-bold">Dashboard</h1>
 
+      {/* 🔹 Cards */}
       <div className="grid grid-cols-4 gap-4">
-
-        <Card title="Total Tickets" value={data.total} />
+        <Card title="Total" value={data.total} />
         <Card title="Open" value={data.openTickets} />
-        <Card title="In Progress" value={data.ProgressTickets} />
+        <Card title="In Progress" value={data.inProgressTickets} />
         <Card title="Closed" value={data.closedTickets} />
-
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-
-        <Card title="MTTR (min)" value={data.mttrMinutes} />
-        <Card title="MTTR Max" value={data.mttrMinutesMax} />
-
+      {/* 🔹 Gráfica MTTR */}
+      <div className="bg-white p-4 rounded shadow">
+        <h2 className="mb-2 font-semibold">MTTR últimos 7 días</h2>
+        <MTTRChart data={mttr} />
       </div>
 
+      {/* 🔹 Gráfica Tickets por Status */}
+      <div className="bg-white p-4 rounded shadow">
+        <h2 className="mb-2 font-semibold">Tickets por estado</h2>
+        <TicketsByStatusChart data={statusData} />
+      </div>
     </div>
-  )
-}
-
-function Card({ title, value }: any) {
-  return (
-    <div className="bg-white p-4 rounded shadow">
-
-      <div className="text-sm text-gray-500">
-        {title}
-      </div>
-
-      <div className="text-2xl font-bold">
-        {value}
-      </div>
-
-    </div>
-  )
+  );
 }

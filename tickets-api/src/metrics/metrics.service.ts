@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { async } from 'rxjs/internal/scheduler/async';
 
 @Injectable()
 export class MetricsService {
@@ -135,6 +136,9 @@ async dashboard() {
     }),
   ]);
 
+//ticket by status
+
+
   // Traer nombres de agentes
   const agentIds = byAgent.map(r => r.assignedToId).filter(Boolean) as string[];
 
@@ -160,6 +164,69 @@ async dashboard() {
       mttrMinutes: mttr.mttrMinutesAvg,
       ticketsByAgent,
     },
+    meta: null,
+    error: null,
+  };
+}
+
+async ticketsByStatus() {
+  const result = await this.prisma.ticket.groupBy({
+    by: ['status'],
+    _count: { status: true },
+  });
+
+  return {
+    data: result.map(r => ({
+      status: r.status,
+      count: r._count.status,
+    })),
+    meta: null,
+    error: null,
+  };
+}
+
+async mttrByDay(days = 7) {
+  const from = new Date();
+  from.setDate(from.getDate() - days);
+
+  const tickets = await this.prisma.ticket.findMany({
+    where: {
+      status: 'CLOSED',
+      closedAt: {
+        not: null,
+        gte: from,
+      },
+    },
+    select: {
+      createdAt: true,
+      closedAt: true,
+    },
+  });
+
+  const grouped: Record<string, number[]> = {};
+
+  tickets.forEach(t => {
+    const date = t.closedAt!.toISOString().split('T')[0];
+
+    const duration =
+      (t.closedAt!.getTime() - t.createdAt.getTime()) / (1000 * 60);
+
+    if (!grouped[date]) grouped[date] = [];
+    grouped[date].push(duration);
+  });
+
+  const result = Object.entries(grouped).map(([date, values]) => {
+    const avg =
+      values.reduce((a, b) => a + b, 0) / values.length;
+
+    return {
+      date,
+      mttr: Math.min(Number(avg.toFixed(2)), 1440), // máximo 1 día
+    };
+  });
+
+  return {
+    data: result,
     meta: null,
     error: null,
   };

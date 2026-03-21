@@ -32,4 +32,14 @@ export class MetricsController {
     return this.metricsService.dashboard();
   }
 
+@Get('tickets-by-status')
+ticketsByStatus() {
+  return this.metricsService.ticketsByStatus();
+}
+
+@Get('mttr-by-day')
+mttrByDay(@Query('days') days?: string) {
+  return this.metricsService.mttrByDay(Number(days) || 7);
+}
+
 }
