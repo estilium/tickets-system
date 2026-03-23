@@ -8,10 +8,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  
+
   //Conexion Back to Front
   app.enableCors({
-  origin: "http://localhost:5173",
+    origin: 'http://localhost:5173',
   });
   // servir uploads
   app.useStaticAssets(join(process.cwd(), 'uploads'), {

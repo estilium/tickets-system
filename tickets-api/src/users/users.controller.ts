@@ -8,17 +8,14 @@ import { UsersService } from './users.service';
 @UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
-
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
   findAgents(@Query('role') role?: string) {
-
     if (role === 'AGENT') {
       return this.usersService.findAgents();
     }
 
     return [];
   }
-
 }

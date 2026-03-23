@@ -9,7 +9,6 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('metrics')
 export class MetricsController {
-
   constructor(private readonly metricsService: MetricsService) {}
 
   @Get('mttr')
@@ -18,7 +17,6 @@ export class MetricsController {
     @Query('year') year?: string,
     @Query('month') month?: string,
   ) {
-
     if (year && month) {
       return this.metricsService.mttrCalendar(Number(year), Number(month));
     }
@@ -32,14 +30,13 @@ export class MetricsController {
     return this.metricsService.dashboard();
   }
 
-@Get('tickets-by-status')
-ticketsByStatus() {
-  return this.metricsService.ticketsByStatus();
-}
+  @Get('tickets-by-status')
+  ticketsByStatus() {
+    return this.metricsService.ticketsByStatus();
+  }
 
-@Get('mttr-by-day')
-mttrByDay(@Query('days') days?: string) {
-  return this.metricsService.mttrByDay(Number(days) || 7);
-}
-
+  @Get('mttr-by-day')
+  mttrByDay(@Query('days') days?: string) {
+    return this.metricsService.mttrByDay(Number(days) || 7);
+  }
 }

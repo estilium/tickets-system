@@ -7,6 +7,13 @@ import { UsersModule } from './users/users.module';
 import { CategoriesModule } from './tickets/category/categories.module';
 
 @Module({
-  imports: [PrismaModule, TicketsModule, AuthModule, MetricsModule, UsersModule, CategoriesModule],
+  imports: [
+    PrismaModule,
+    TicketsModule,
+    AuthModule,
+    MetricsModule,
+    UsersModule,
+    CategoriesModule,
+  ],
 })
 export class AppModule {}

@@ -3,7 +3,6 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class UsersService {
-
   constructor(private prisma: PrismaService) {}
 
   async findAgents() {
@@ -18,5 +17,4 @@ export class UsersService {
       },
     });
   }
-
 }

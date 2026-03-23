@@ -1,10 +1,13 @@
-import { IsString, IsUUID, IsOptional } from 'class-validator';
+import { IsString, IsUUID, IsOptional, isString } from 'class-validator';
 
 export class AssignTicketDto {
-@IsString()
-ticketLocation: string;
+  @IsString()
+  ticketLocation: string;
 
-@IsOptional()
-@IsString()
-categoryId?: string;
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @IsString()
+  assignedToId: string;
 }

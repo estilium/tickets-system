@@ -1,78 +1,87 @@
-import { Injectable , BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { Prisma } from '@prisma/client';
-
 
 @Injectable()
 export class TicketsService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(user: any, query: any) {
+    const page = Number(query.page ?? 1);
+    const limit = Number(query.limit ?? 20);
+    const skip = (page - 1) * limit;
 
-  const page = Number(query.page ?? 1);
-  const limit = Number(query.limit ?? 20);
-  const skip = (page - 1) * limit;
+    const where: any = {};
 
-  const where: any = {};
+    // requester solo ve sus tickets
+    if (user.role === 'REQUESTER') {
+      where.requesterId = user.id;
+    }
 
-  // requester solo ve sus tickets
-  if (user.role === 'REQUESTER') {
-    where.requesterId = user.id;
-  }
+    if (query.status) {
+      where.status = query.status;
+    }
 
-  if (query.status) {
-    where.status = query.status;
-  }
+    if (query.assignedToId) {
+      where.assignedToId = query.assignedToId;
+    }
 
-  if (query.assignedToId) {
-    where.assignedToId = query.assignedToId;
-  }
+    if (query.search) {
+      where.OR = [
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { description: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
 
-  if (query.search) {
-    where.OR = [
-      { title: { contains: query.search, mode: 'insensitive' } },
-      { description: { contains: query.search, mode: 'insensitive' } },
-    ];
-  }
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.ticket.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          requester: true,
+          assignedTo: true,
+        },
+      }),
+      this.prisma.ticket.count({ where }),
+    ]);
 
-  const [items, total] = await this.prisma.$transaction([
-    this.prisma.ticket.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        requester: true,
-        assignedTo: true,
+    return {
+      data: items,
+      meta: {
+        total,
+        page,
+        limit,
       },
-    }),
-    this.prisma.ticket.count({ where }),
-  ]);
-
-  return {
-    data: items,
-    meta: {
-    total,
-    page,
-    limit,
-    },
-    error: null
-  };
-}
+      error: null,
+    };
+  }
 
   findOne(id: string) {
     return this.prisma.ticket.findUnique({
       where: { id },
       include: {
-        requester: { select: { id: true, name: true, email: true, role: true } },
-        assignedTo: { select: { id: true, name: true, email: true, role: true } },
+        requester: {
+          select: { id: true, name: true, email: true, role: true },
+        },
+        assignedTo: {
+          select: { id: true, name: true, email: true, role: true },
+        },
         attachments: true,
         messages: {
           orderBy: { createdAt: 'asc' },
           include: {
-            author: { select: { id: true, name: true, email: true, role: true } }, 
+            author: {
+              select: { id: true, name: true, email: true, role: true },
+            },
           },
         },
       },
@@ -87,7 +96,7 @@ export class TicketsService {
         requesterId: dto.requesterId,
         ticketLocation: dto.ticketLocation,
         categoryId: dto.categoryId,
-      }
+      },
     });
   }
 
@@ -127,78 +136,88 @@ export class TicketsService {
   }
 
   async update(id: string, updateTicketDto: UpdateTicketDto) {
-  try {
-    return await this.prisma.ticket.update({
-      where: { id },
-      data: updateTicketDto as any,
+    try {
+      return await this.prisma.ticket.update({
+        where: { id },
+        data: updateTicketDto as any,
+      });
+    } catch (e: any) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2025'
+      ) {
+        throw new NotFoundException('Ticket not found');
+      }
+      throw e;
+    }
+  }
+
+  async remove(id: string) {
+    try {
+      return await this.prisma.ticket.delete({ where: { id } });
+    } catch (e: any) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2025'
+      ) {
+        throw new NotFoundException('Ticket not found');
+      }
+      throw e;
+    }
+  }
+
+  async addMessage(
+    ticketId: string,
+    user: any,
+    content: string,
+    files: any[] = [],
+  ) {
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      select: { requesterId: true, status: true },
     });
-  } catch (e: any) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-      throw new NotFoundException('Ticket not found');
+
+    if (!ticket) throw new NotFoundException('Ticket not found');
+
+    if (ticket.status === 'CLOSED') {
+      throw new BadRequestException('Ticket is closed');
     }
-    throw e;
-  }
-}
 
- async remove(id: string) {
-  try {
-    return await this.prisma.ticket.delete({ where: { id } });
-  } catch (e: any) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-      throw new NotFoundException('Ticket not found');
+    const isRequester = user.role === 'REQUESTER';
+    if (isRequester && ticket.requesterId !== user.id) {
+      throw new ForbiddenException();
     }
-    throw e;
-  }
-}
 
-async addMessage(
-  ticketId: string,
-  user: any,
-  content: string,
-  files: any[] = [],
-) {
+    const message = await this.prisma.ticketMessage.create({
+      data: {
+        content,
+        ticketId,
+        authorId: user.id,
+      },
+    });
 
-  const ticket = await this.prisma.ticket.findUnique({
-    where: { id: ticketId },
-    select: { requesterId: true, status: true },
-  });
+    if (files.length > 0) {
+      await this.prisma.ticketAttachment.createMany({
+        data: files.map((f) => ({
+          ticketId,
+          filename: f.filename,
+          original: f.originalname,
+          mime: f.mimetype,
+          size: f.size,
+          url: `/uploads/${f.filename}`,
+        })),
+      });
+    }
 
-  if (!ticket) throw new NotFoundException('Ticket not found');
-
-  if (ticket.status === 'CLOSED') {
-    throw new BadRequestException('Ticket is closed');
-  }
-
-  const isRequester = user.role === 'REQUESTER';
-  if (isRequester && ticket.requesterId !== user.id) {
-    throw new ForbiddenException();
+    return message;
   }
 
-  const message = await this.prisma.ticketMessage.create({
-    data: {
-      content,
-      ticketId,
-      authorId: user.id,
-    },
-  });
-
-if (files.length > 0) {
-  await this.prisma.ticketAttachment.createMany({
-    data: files.map((f) => ({
-      ticketId,
-      filename: f.filename,
-      original: f.originalname,
-      mime: f.mimetype,
-      size: f.size,
-      url: `/uploads/${f.filename}`,
-    })),
-  });
-}
-
-  return message;
-} 
-
-  async updateStatus(ticketId: string, user: any, status: string, note?: string) {
+  async updateStatus(
+    ticketId: string,
+    user: any,
+    status: string,
+    note?: string,
+  ) {
     const ticket = await this.prisma.ticket.findUnique({
       where: { id: ticketId },
       select: { id: true, status: true },
@@ -255,9 +274,9 @@ if (files.length > 0) {
       select: { id: true, status: true },
     });
 
-      if (!ticket) throw new NotFoundException('Ticket not found');
-      if (ticket.status === 'CLOSED') throw new BadRequestException('Ticket is closed');
-     
+    if (!ticket) throw new NotFoundException('Ticket not found');
+    if (ticket.status === 'CLOSED')
+      throw new BadRequestException('Ticket is closed');
 
     // Regla C:
     if (user.role === 'AGENT' && assignedToId !== user.id) {
@@ -273,15 +292,16 @@ if (files.length > 0) {
     });
 
     if (!target) throw new NotFoundException('Assigned user not found');
-    if (target.role === 'REQUESTER') throw new BadRequestException('Cannot assign to REQUESTER');
+    if (target.role === 'REQUESTER')
+      throw new BadRequestException('Cannot assign to REQUESTER');
 
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.ticket.update({
         where: { id: ticketId },
         data: {
-  assignedToId,
-  status: ticket.status === 'OPEN' ? 'IN_PROGRESS' : ticket.status,
-},
+          assignedToId,
+          status: ticket.status === 'OPEN' ? 'IN_PROGRESS' : ticket.status,
+        },
       });
 
       await tx.ticketMessage.create({
@@ -297,38 +317,36 @@ if (files.length > 0) {
   }
 
   async getMyTickets(user: any) {
-  return this.prisma.ticket.findMany({
-    where: {
-      requesterId: user.id,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-    include: {
-      requester: true,
-      assignedTo: true,
-    },
-  });
-}
-
-async getAssignedTickets(user: any) {
-
-  if (user.role === 'REQUESTER') {
-    throw new ForbiddenException();
+    return this.prisma.ticket.findMany({
+      where: {
+        requesterId: user.id,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        requester: true,
+        assignedTo: true,
+      },
+    });
   }
 
-  return this.prisma.ticket.findMany({
-    where: {
-      assignedToId: user.id,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-    include: {
-      requester: true,
-      assignedTo: true,
-    },
-  });
-}
+  async getAssignedTickets(user: any) {
+    if (user.role === 'REQUESTER') {
+      throw new ForbiddenException();
+    }
 
+    return this.prisma.ticket.findMany({
+      where: {
+        assignedToId: user.id,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        requester: true,
+        assignedTo: true,
+      },
+    });
+  }
 }

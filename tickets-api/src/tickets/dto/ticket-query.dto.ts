@@ -2,7 +2,6 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsNumberString } from 'class-validator';
 
 export class TicketQueryDto {
-
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
   @IsNumberString()
@@ -27,5 +26,4 @@ export class TicketQueryDto {
   @IsOptional()
   @IsString()
   assignedToId?: string;
-
 }
