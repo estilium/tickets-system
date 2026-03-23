@@ -151,9 +151,18 @@ function DraggableCard({ ticket }: any) {
         #{ticket.id.slice(0, 6)}
       </div>
 
-      <div className="text-xs mt-2">
-        👤 {ticket.assignedTo?.name ?? "Unassigned"}
-      </div>
+<div className="text-xs mt-2">
+  👤 {ticket.assignedTo?.name ?? "Unassigned"}
+</div>
+
+{/* 🔥 NUEVO */}
+<div className="text-xs text-gray-500 mt-1">
+  📍 {ticket.ticketLocation ?? "-"}  
+</div>
+
+<div className="text-xs text-gray-500">
+  🏷️ {ticket.category?.name ?? "-"}
+</div>
     </div>
   );
 }

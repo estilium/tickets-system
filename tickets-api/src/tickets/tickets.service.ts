@@ -49,6 +49,7 @@ export class TicketsService {
         include: {
           requester: true,
           assignedTo: true,
+          category: true,
         },
       }),
       this.prisma.ticket.count({ where }),
@@ -75,6 +76,7 @@ export class TicketsService {
         assignedTo: {
           select: { id: true, name: true, email: true, role: true },
         },
+        category: true,
         attachments: true,
         messages: {
           orderBy: { createdAt: 'asc' },

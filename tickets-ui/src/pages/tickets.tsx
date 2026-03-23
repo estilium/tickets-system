@@ -134,9 +134,21 @@ await api.post("/tickets", {
        </div>
 
         <div className="text-gray-500 text-sm mt-1">
-            {t.description}
-          </div>
+  {t.description}
+</div>
 
+            {/* 🔥 NUEVO */}
+            <div className="flex gap-4 mt-2 text-xs text-gray-500">
+
+              <div>
+                📍 {t.ticketLocation ?? "Sin ubicación"}
+              </div>
+
+              <div>
+                🏷️ {t.category?.name ?? "Sin categoría"}
+              </div>
+
+            </div>
         <div className="flex justify-between items-center mt-3 text-sm">
            <div className="text-gray-400">
               Ticket #{t.id.slice(0, 6)}
@@ -188,6 +200,8 @@ await api.post("/tickets", {
               <option value="Pintura">Pintura</option>
               <option value="Inyección">Inyección</option>
               <option value="Embarques">Embarques</option>
+              <option value="almacen">Almacén</option>
+              <option value="moldes">Moldes</option>
               <option value="HR">HR</option>
               <option value="Enfermería">Enfermería</option>
             </select>

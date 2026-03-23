@@ -50,7 +50,6 @@ export class TicketsController {
     @Req() req: any,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
-    console.log('USER:', req.user);
     return this.ticketsService.createWithAttachments(
       { ...createTicketDto, requesterId: req.user.id },
       files || [],

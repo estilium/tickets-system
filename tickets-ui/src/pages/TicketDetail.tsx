@@ -120,14 +120,26 @@ if (fileRef.current) {
 
 {/* HEADER */}
 <div className="flex items-center justify-between mb-4">
+<div className="flex gap-4 mt-2 text-sm text-gray-600">
 
-  {/* IZQUIERDA */}
-  <button
+
+ <button
     onClick={() => navigate("/tickets")}
     className="text-blue-600 hover:underline"
   >
     ← Back
   </button>
+
+  <div>
+    📍 {ticket.ticketLocation ?? "Sin ubicación"}
+  </div>
+
+  <div>
+    🏷️ {ticket.category?.name ?? "Sin categoría"}
+  </div>
+
+</div>
+
 
   {/* DERECHA (acciones) */}
   <div className="flex gap-2 items-center">
@@ -172,7 +184,7 @@ if (fileRef.current) {
         onClick={closeTicket}
         className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
       >
-        Close
+        Close Ticket
       </button>
     )}
 
