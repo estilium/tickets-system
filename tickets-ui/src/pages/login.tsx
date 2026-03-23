@@ -20,8 +20,12 @@ export default function Login() {
       });
 
       const token = res.data.access_token;
+      const user = res.data.user;
 
       localStorage.setItem("token", token);
+      if (user) {
+        localStorage.setItem("user", JSON.stringify(user));
+      }
 
       navigate("/");
 

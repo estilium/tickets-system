@@ -111,30 +111,35 @@ async mttrCalendar(year: number, month: number) {
 }
 
 async dashboard() {
-  const [openTickets, closedTickets, mttr, byAgent] = await Promise.all([
-    // tickets abiertos
-    this.prisma.ticket.count({
-      where: { status: { not: 'CLOSED' } },
-    }),
+ const [openTickets, inProgressTickets, closedTickets, mttr, byAgent] = await Promise.all([
+     // OPEN
+  this.prisma.ticket.count({
+    where: { status: 'OPEN' },
+  }),
 
-    // tickets cerrados
-    this.prisma.ticket.count({
-      where: { status: 'CLOSED' },
-    }),
+  // IN PROGRESS
+  this.prisma.ticket.count({
+    where: { status: 'IN_PROGRESS' },
+  }),
 
-    // reutilizamos tu cálculo de MTTR (últimos 30 días)
-    this.mttr(30),
+  // CLOSED
+  this.prisma.ticket.count({
+    where: { status: 'CLOSED' },
+  }),
 
-    // tickets cerrados por agente (groupBy)
-    this.prisma.ticket.groupBy({
-      by: ['assignedToId'],
-      where: {
-        status: 'CLOSED',
-        assignedToId: { not: null },
-      },
-      _count: { _all: true },
-    }),
-  ]);
+  // MTTR
+  this.mttr(30),
+
+  // BY AGENT
+  this.prisma.ticket.groupBy({
+    by: ['assignedToId'],
+    where: {
+      status: 'CLOSED',
+      assignedToId: { not: null },
+    },
+    _count: { _all: true },
+  }),
+]);
 
 //ticket by status
 
@@ -157,16 +162,20 @@ async dashboard() {
     };
   });
 
-  return {
-    data: {
-      openTickets,
-      closedTickets,
-      mttrMinutes: mttr.mttrMinutesAvg,
-      ticketsByAgent,
-    },
-    meta: null,
-    error: null,
-  };
+const total = openTickets + inProgressTickets + closedTickets;
+
+return {
+  data: {
+    total,
+    openTickets,
+    inProgressTickets,
+    closedTickets,
+    mttrMinutes: mttr.mttrMinutesAvg,
+    ticketsByAgent,
+  },
+  meta: null,
+  error: null,
+};
 }
 
 async ticketsByStatus() {

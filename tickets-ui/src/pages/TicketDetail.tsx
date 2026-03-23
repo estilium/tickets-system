@@ -12,6 +12,52 @@ export default function TicketDetail() {
   const [file, setFile] = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [users, setUsers] = useState<any[]>([])
+  const [selectedUserId, setSelectedUserId] = useState<string>("")
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user")
+    if (storedUser) {
+      setCurrentUser(JSON.parse(storedUser))
+    }
+  }, [])
+
+  useEffect(() => {
+    loadAgents()
+  }, [])
+
+  async function loadAgents() {
+    try {
+      const res = await api.get("/users?role=AGENT")
+      setUsers(res.data)
+    } catch (err) {
+      console.error("Error loading agents:", err)
+    }
+  }
+
+  const handleAssign = async (assignTo?: string) => {
+    const targetId = assignTo || currentUser?.id
+    
+    if (!targetId) {
+      alert("Selecciona un usuario")
+      return
+    }
+
+    try {
+      await api.patch(`/tickets/${ticket.id}/assign`, {
+        assignedToId: targetId,
+      });
+
+      alert("Ticket asignado");
+      setSelectedUserId("")
+      await loadTicket()
+    } catch (err: any) {
+      console.error("ERROR COMPLETO:", err);
+      console.error("DATA:", err.response?.data);
+      alert("Error: " + (err.response?.data?.message || "No se pudo asignar"))
+    }
+  };
 
   async function loadTicket() {
     try {
@@ -72,26 +118,67 @@ if (fileRef.current) {
   return (
     <div className="p-6">
 
-      {/* HEADER */}
-      <div className="flex items-center mb-4">
+{/* HEADER */}
+<div className="flex items-center justify-between mb-4">
 
-        <button
-          onClick={() => navigate("/tickets")}
-          className="text-blue-600 hover:underline"
-        >
-          ← Back
-        </button>
+  {/* IZQUIERDA */}
+  <button
+    onClick={() => navigate("/tickets")}
+    className="text-blue-600 hover:underline"
+  >
+    ← Back
+  </button>
 
-        {ticket.status !== "CLOSED" && (
+  {/* DERECHA (acciones) */}
+  <div className="flex gap-2 items-center">
+    
+    {ticket.status !== "CLOSED" && (
+      <>
+        {ticket.assignedToId !== currentUser?.id && (
           <button
-            onClick={closeTicket}
-            className="ml-auto bg-red-600 text-white px-4 py-2 rounded"
+            onClick={() => handleAssign()}
+            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
           >
-            Close
+            Asignarme
           </button>
         )}
 
-      </div>
+        <div className="flex gap-1">
+          <select
+            value={selectedUserId}
+            onChange={(e) => setSelectedUserId(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          >
+            <option value="">Selecciona agente...</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name || u.email}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => handleAssign(selectedUserId)}
+            disabled={!selectedUserId}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-gray-300"
+          >
+            Asignar a
+          </button>
+        </div>
+      </>
+    )}
+
+    {ticket.status !== "CLOSED" && (
+      <button
+        onClick={closeTicket}
+        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+      >
+        Close
+      </button>
+    )}
+
+  </div>
+
+</div>
 
       {/* TITLE */}
       <div className="flex items-center gap-3 mb-4">
@@ -162,7 +249,7 @@ if (fileRef.current) {
         ))}
 {selectedImage && (
   <div
-    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    className="fixed inset-0 bg-gray-900/20 bg-opacity-20 flex items-center justify-center z-50"
     onClick={() => setSelectedImage(null)}
   >
     <img

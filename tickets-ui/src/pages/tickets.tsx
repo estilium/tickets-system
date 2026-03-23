@@ -1,118 +1,195 @@
-import { useEffect, useState } from "react"
-import { Link } from "react-router-dom"
-import { api } from "../api/api"
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { api } from "../api/api";
 
 export default function Tickets() {
 
-  const [tickets, setTickets] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState("")
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  // 🔥 modal state
+  const [showModal, setShowModal] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [animate, setAnimate] = useState(false);
 
   async function loadTickets() {
-    const res = await api.get("/tickets")
-    setTickets(res.data.data)
-    setLoading(false)
+    const res = await api.get("/tickets");
+    setTickets(res.data.data);
+    setLoading(false);
   }
 
-  useEffect(()=>{
-    loadTickets()
-  },[])
+  useEffect(() => {
+    loadTickets();
+  }, []);
 
-  const filteredTickets = tickets.filter((t:any) =>
+  async function handleCreate() {
+    try {
+      await api.post("/tickets", {
+        title,
+        description,
+      });
+
+      setShowModal(false);
+      setTitle("");
+      setDescription("");
+
+      loadTickets();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  const handleCloseModal = () => {
+  setAnimate(false);
+  setTimeout(() => setShowModal(false), 200);
+};
+
+  const filteredTickets = tickets.filter((t: any) =>
     t.title?.toLowerCase().includes(search.toLowerCase()) ||
     t.description?.toLowerCase().includes(search.toLowerCase()) ||
     t.assignedTo?.name?.toLowerCase().includes(search.toLowerCase())
-  )
+  );
 
-  if (loading) return <div>Loading...</div>
+  if (loading) return <div>Loading...</div>;
 
   return (
-    // Boton add 
-    <div className="space-y-4">
+      <div className="space-y-4">
 
+{/* HEADER */}
+<div className="flex justify-between items-center mb-4">
 
+  <h1 className="text-xl font-semibold">Tickets</h1>
 
-                    <div className="flex justify-between items-center mb-4">
+  {/* 🔥 BOTONES */}
+  <div className="flex gap-2">
 
-            <h1 className="text-xl font-semibold">
-                Tickets
-            </h1>
+    <button
+      onClick={() => {
+        setShowModal(true);
+        setTimeout(() => setAnimate(true), 10);
+      }}
+      className="bg-blue-600 hover:bg-blue-900 text-white px-4 py-2 rounded"
+    >
+      + New Ticket
+    </button>
 
-            <Link
-                to="/tickets/new"
-                className="bg-blue-600 text-white px-4 py-2 rounded"
-            >
-                + New Ticket
-            </Link>
+    <Link
+      to="/kanban"
+      className="bg-gray-700 hover:bg-gray-900 text-white px-4 py-2 rounded"
+    >
+      Kanban
+    </Link>
 
-            </div>
+  </div>
 
+</div>
       {/* buscador */}
       <div className="flex mb-4">
         <input
           type="text"
           placeholder="Search tickets..."
           value={search}
-          onChange={(e)=>setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
           className="border rounded p-2 w-full"
         />
       </div>
 
       {/* cards */}
-      {filteredTickets.map((t:any)=>(
+      {filteredTickets.map((t: any) => (
         <Link
           key={t.id}
           to={`/tickets/${t.id}`}
           className="block bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition"
         >
-
-          {/* titulo */}
-          <div className="flex justify-between items-center">
-
-            <div className="font-semibold text-lg">
-              {t.title}
-            </div>
-
+        <div className="flex justify-between items-center">
+            <div className="font-semibold text-lg">{t.title}</div>
             <StatusBadge status={t.status} />
+       </div>
 
-          </div>
-
-          {/* descripcion */}
-          <div className="text-gray-500 text-sm mt-1">
+        <div className="text-gray-500 text-sm mt-1">
             {t.description}
           </div>
 
-          {/* footer */}
-          <div className="flex justify-between items-center mt-3 text-sm">
-
-            <div className="text-gray-400">
-              Ticket #{t.id.slice(0,6)}
+        <div className="flex justify-between items-center mt-3 text-sm">
+           <div className="text-gray-400">
+              Ticket #{t.id.slice(0, 6)}
             </div>
 
             <div className="text-gray-600">
               👤 {t.assignedTo?.name ?? "Unassigned"}
-            </div>
-
           </div>
-
+        </div>
         </Link>
       ))}
 
+      {/* 🔥 MODAL (AHORA SÍ BIEN PUESTO) */}
+      {showModal && (
+        <div className="fixed inset-0 bg-gray-900/20 bg-opacity-20 flex items-center justify-center z-50 transition-opacity duration-300">
+          
+          <div
+  className={`
+    bg-white p-6 rounded shadow w-[400px]
+    transform transition-all duration-300
+    ${animate ? "scale-100 opacity-100" : "scale-90 opacity-0"}
+  `}
+>
+
+            <h2 className="text-xl font-bold mb-4">Nuevo Ticket</h2>
+
+            <input
+              type="text"
+              placeholder="Título"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full border p-2 mb-2 rounded"
+            />
+
+            <textarea
+              placeholder="Descripción"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full border p-2 mb-4 rounded"
+            />
+
+            <div className="flex justify-end gap-2">
+              
+              <button
+                onClick={handleCloseModal}
+                className="px-4 py-2 bg-gray-300 rounded"
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={handleCreate}
+                disabled={!title || !description}
+                className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+              >
+                Crear
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
-  )
+  );
 }
 
 function StatusBadge({ status }: any) {
-
-  const colors:any = {
+  const colors: any = {
     OPEN: "bg-yellow-100 text-yellow-800",
     IN_PROGRESS: "bg-blue-100 text-blue-800",
     CLOSED: "bg-green-100 text-green-800"
-  }
+  };
 
   return (
     <span className={`px-2 py-1 text-xs rounded ${colors[status]}`}>
       {status}
     </span>
-  )
+  );
 }

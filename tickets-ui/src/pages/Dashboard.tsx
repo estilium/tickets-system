@@ -71,5 +71,8 @@ export default function Dashboard() {
         <TicketsByStatusChart data={statusData} />
       </div>
     </div>
+
+    
+
   );
 }

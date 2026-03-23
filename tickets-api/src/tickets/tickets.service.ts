@@ -274,7 +274,10 @@ if (files.length > 0) {
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.ticket.update({
         where: { id: ticketId },
-        data: { assignedToId },
+        data: {
+  assignedToId,
+  status: ticket.status === 'OPEN' ? 'IN_PROGRESS' : ticket.status,
+},
       });
 
       await tx.ticketMessage.create({
