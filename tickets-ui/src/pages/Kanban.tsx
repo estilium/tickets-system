@@ -38,6 +38,9 @@ const handleDragEnd = async (event: any) => {
   const newStatus = over.id;
 
   console.log("Mover ticket:", ticketId, "→", newStatus);
+// encontrar ticket y validar que el status realmente cambió no hacer nada si el ticket ya tiene ese status
+  const ticket = tickets.find(t => t.id === ticketId);
+  if (!ticket || ticket.status === newStatus) return;
 
   // Actualizar estado local inmediatamente
   setTickets(prev => prev.map(t =>
@@ -50,7 +53,11 @@ const handleDragEnd = async (event: any) => {
       status: newStatus
     });
     console.log("Ticket actualizado exitosamente");
-    loadTickets(); // recargar tickets para asegurar consistencia   
+    setTickets(prev =>
+  prev.map(t =>
+    t.id === ticketId ? { ...t, status: newStatus } : t
+  )
+); 
   } catch (err: any) {
     console.error("Error actualizando ticket:", err);
     // Revertir cambio si falla
@@ -92,12 +99,15 @@ const handleDragEnd = async (event: any) => {
 
 // 🔥 columna reutilizable
 function Column({ title, tickets, id}: any) {
-  const { setNodeRef } = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id,
   });
 
   return (
-    <div ref={setNodeRef} className="bg-gray-100 rounded p-3 min-h-[500px]">
+     <div
+      ref={setNodeRef}
+      className={`rounded p-3 min-h-[500px] transition ${isOver ? "bg-blue-100" : "bg-gray-100"}`}
+    >
 
       <h2 className="font-semibold mb-3">{title}</h2>
 
@@ -133,7 +143,7 @@ function DraggableCard({ ticket }: any) {
       style={style}
       {...listeners}
       {...attributes}
-      className="bg-white p-3 rounded shadow cursor-grab"
+      className="bg-white p-3 rounded shadow cursor-grab active:cursor-grabbing"
     >
       <div className="font-medium">{ticket.title}</div>
 

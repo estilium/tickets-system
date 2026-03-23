@@ -7,12 +7,27 @@ export default function Tickets() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [ticketLocation, setTicketLocation] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [categories, setCategories] = useState<any[]>([]);
 
   // 🔥 modal state
   const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [animate, setAnimate] = useState(false);
+  
+async function handleCreateCategory() {
+  const name = prompt("Nombre de categoría");
+
+  if (!name) return;
+
+  await api.post("/categories", { name });
+
+  const res = await api.get("/categories");
+  setCategories(res.data.data);
+}
+
 
   async function loadTickets() {
     const res = await api.get("/tickets");
@@ -24,12 +39,22 @@ export default function Tickets() {
     loadTickets();
   }, []);
 
+useEffect(() => {
+  api.get("/categories").then(res => {
+    console.log("CATEGORIES:", res.data);
+
+    setCategories(res.data?.data ?? res.data ?? []);
+  });
+}, []);
+
   async function handleCreate() {
     try {
-      await api.post("/tickets", {
-        title,
-        description,
-      });
+await api.post("/tickets", {
+  title,
+  description,
+  ticketLocation,
+  categoryId,
+});
 
       setShowModal(false);
       setTitle("");
@@ -152,7 +177,35 @@ export default function Tickets() {
               onChange={(e) => setDescription(e.target.value)}
               className="w-full border p-2 mb-4 rounded"
             />
+            
+                        <select
+              value={ticketLocation}
+              onChange={(e) => setTicketLocation(e.target.value)}
+              className="w-full border p-2 mb-2 rounded"
+            >
+              <option value="">Selecciona ubicación</option>
+              <option value="Oficina General">Oficina General</option>
+              <option value="Pintura">Pintura</option>
+              <option value="Inyección">Inyección</option>
+              <option value="Embarques">Embarques</option>
+              <option value="HR">HR</option>
+              <option value="Enfermería">Enfermería</option>
+            </select>
 
+              <select
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full border p-2 mb-2 rounded"
+              >
+                <option value="">Selecciona categoría</option>
+
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+                
             <div className="flex justify-end gap-2">
               
               <button

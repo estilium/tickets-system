@@ -85,7 +85,9 @@ export class TicketsService {
         title: dto.title,
         description: dto.description,
         requesterId: dto.requesterId,
-      },
+        ticketLocation: dto.ticketLocation,
+        categoryId: dto.categoryId,
+      }
     });
   }
 
@@ -99,7 +101,9 @@ export class TicketsService {
           title: dto.title,
           description: dto.description,
           requesterId: dto.requesterId,
-        },
+          ticketLocation: dto.ticketLocation,
+          categoryId: dto.categoryId,
+        } as any,
       });
 
       if (files.length > 0) {

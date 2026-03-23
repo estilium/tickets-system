@@ -40,6 +40,9 @@ model Ticket {
   id          String       @id @default(uuid())
   title       String
   description String
+  ticketLocation    String?
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
   status      TicketStatus @default(OPEN)
   priority    Priority     @default(NORMAL)
   closedAt DateTime?
@@ -73,6 +76,12 @@ model TicketMessage {
   createdAt DateTime @default(now())
 }
 
+model Category {
+  id    String  @id @default(uuid())
+  name  String
+  tickets Ticket[]
+}
+
 enum TicketStatus {
   OPEN
   IN_PROGRESS
@@ -84,6 +93,17 @@ enum Priority {
   LOW
   NORMAL
   HIGH
+}
+
+enum Location {
+  OFICINA_GRAL
+  PINTURA
+  INYECCION
+  EMBARQUES
+  ALMACEN
+  HR
+  ENFERMERIA
+  MOLDES
 }
 
 model TicketAttachment {

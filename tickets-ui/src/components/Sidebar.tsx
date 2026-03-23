@@ -5,10 +5,10 @@ export default function Sidebar() {
     <div className="w-60 h-screen bg-gray-900 text-white flex flex-col p-5">
       <h1 className="text-xl font-bold mb-8">Ticket System</h1>
 
-      <nav className="flex flex-col gap-4">
+      <nav className="flex flex-col gap-4 text-gray-300 hover:text-white transition duration-200  size-lg 2xl:text-xl bold">
         <Link to="/">Dashboard</Link>
         <Link to="/tickets">Tickets</Link>
-        <Link to="/metrics">Metrics</Link>
+        <Link to="/kanban">Kanban</Link>  
         <Link to="/users">Users</Link>
       </nav>
     </div>

@@ -4,7 +4,6 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Tickets from "./pages/tickets";
 import TicketDetail from "./pages/TicketDetail";
-import Metrics from "./pages/Metrics";
 import Users from "./pages/Users";
 import Login from "./pages/login";
 import NewTicket from "./pages/NewTicket"
@@ -29,7 +28,6 @@ function App() {
         <Route path="tickets" element={<Tickets />} />
         <Route path="tickets/new" element={<NewTicket />} />
         <Route path="tickets/:id" element={<TicketDetail />} />
-        <Route path="metrics" element={<Metrics />} />
         <Route path="users" element={<Users />} />
         <Route path="kanban" element={<Kanban />} />
       </Route>
