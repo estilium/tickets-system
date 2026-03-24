@@ -1,13 +1,6 @@
-import { IsString, IsUUID, IsOptional, isString } from 'class-validator';
+import { IsUUID } from 'class-validator';
 
 export class AssignTicketDto {
-  @IsString()
-  ticketLocation: string;
-
-  @IsOptional()
-  @IsString()
-  categoryId?: string;
-
-  @IsString()
+  @IsUUID()
   assignedToId: string;
 }

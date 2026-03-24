@@ -171,7 +171,7 @@ export class TicketsService {
   async addMessage(
     ticketId: string,
     user: any,
-    content: string,
+    content: string | undefined,
     files: any[] = [],
   ) {
     const ticket = await this.prisma.ticket.findUnique({
@@ -185,6 +185,10 @@ export class TicketsService {
       throw new BadRequestException('Ticket is closed');
     }
 
+    if (!content && files.length === 0) {
+      throw new BadRequestException('Message must have content or files');
+    }
+
     const isRequester = user.role === 'REQUESTER';
     if (isRequester && ticket.requesterId !== user.id) {
       throw new ForbiddenException();
@@ -192,7 +196,7 @@ export class TicketsService {
 
     const message = await this.prisma.ticketMessage.create({
       data: {
-        content,
+        content: content || '',
         ticketId,
         authorId: user.id,
       },
@@ -351,4 +355,15 @@ export class TicketsService {
       },
     });
   }
+
+  async deleteAll() {
+    return this.prisma.$transaction(async (tx) => {
+      // Delete messages first (since no cascade)
+      await tx.ticketMessage.deleteMany({});
+      // Attachments will be deleted via cascade when tickets are deleted
+      // Delete all tickets
+      return tx.ticket.deleteMany({});
+    });
+  }
+  // borrar todos los tickets (solo para testing, no exponer en controller)
 }

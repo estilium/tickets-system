@@ -16,17 +16,6 @@ export default function Tickets() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [animate, setAnimate] = useState(false);
-  
-async function handleCreateCategory() {
-  const name = prompt("Nombre de categoría");
-
-  if (!name) return;
-
-  await api.post("/categories", { name });
-
-  const res = await api.get("/categories");
-  setCategories(res.data.data);
-}
 
 
   async function loadTickets() {
@@ -48,21 +37,29 @@ useEffect(() => {
 }, []);
 
   async function handleCreate() {
+    if (!title || !description || !ticketLocation || !categoryId) {
+      alert("Por favor completa todos los campos (Título, Descripción, Ubicación y Categoría)");
+      return;
+    }
+
     try {
-await api.post("/tickets", {
-  title,
-  description,
-  ticketLocation,
-  categoryId,
-});
+      await api.post("/tickets", {
+        title,
+        description,
+        ticketLocation,
+        categoryId,
+      });
 
       setShowModal(false);
       setTitle("");
       setDescription("");
+      setTicketLocation("");
+      setCategoryId("");
 
       loadTickets();
     } catch (err) {
       console.error(err);
+      alert("Error al crear el ticket");
     }
   }
 
@@ -194,8 +191,9 @@ await api.post("/tickets", {
               value={ticketLocation}
               onChange={(e) => setTicketLocation(e.target.value)}
               className="w-full border p-2 mb-2 rounded"
+              required
             >
-              <option value="">Selecciona ubicación</option>
+              <option value="">Selecciona ubicación *</option>
               <option value="Oficina General">Oficina General</option>
               <option value="Pintura">Pintura</option>
               <option value="Inyección">Inyección</option>
@@ -210,8 +208,9 @@ await api.post("/tickets", {
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 className="w-full border p-2 mb-2 rounded"
+                required
               >
-                <option value="">Selecciona categoría</option>
+                <option value="">Selecciona categoría *</option>
 
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -231,7 +230,7 @@ await api.post("/tickets", {
 
               <button
                 onClick={handleCreate}
-                disabled={!title || !description}
+                disabled={!title || !description || !ticketLocation || !categoryId}
                 className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
               >
                 Crear

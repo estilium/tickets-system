@@ -39,6 +39,10 @@ export default function TicketDetail() {
   const handleAssign = async (assignTo?: string) => {
     const targetId = assignTo || currentUser?.id
     
+    console.log("Current User:", currentUser)
+    console.log("Target ID:", targetId)
+    console.log("Assign To Param:", assignTo)
+    
     if (!targetId) {
       alert("Selecciona un usuario")
       return
@@ -55,7 +59,7 @@ export default function TicketDetail() {
     } catch (err: any) {
       console.error("ERROR COMPLETO:", err);
       console.error("DATA:", err.response?.data);
-      alert("Error: " + (err.response?.data?.message || "No se pudo asignar"))
+      alert("Error: " + (err.response?.data?.message?.[0] || err.response?.data?.message || "No se pudo asignar"))
     }
   };
 
@@ -73,7 +77,9 @@ export default function TicketDetail() {
     if (!message && !file) return
 
     const formData = new FormData()
-    formData.append("content", message || "")
+    if (message.trim()) {
+      formData.append("content", message.trim())
+    }
 
     if (file) {
       formData.append("files", file) // 👈 importante
@@ -215,7 +221,7 @@ if (fileRef.current) {
       <div className="mb-6">
 
       <h3 className="text-sm text-gray-500 mb-2">
-       <h1><b> Documentos Adjuntos: </b> </h1>
+        <b>Documentos Adjuntos:</b>
       </h3>
 
       <div className="flex gap-2 flex-wrap">

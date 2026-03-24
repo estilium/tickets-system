@@ -1,8 +1,8 @@
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateMessageDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(4000)
-  content: string;
+  content?: string;
 }

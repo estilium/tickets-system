@@ -8,6 +8,7 @@ import Users from "./pages/Users";
 import Login from "./pages/login";
 import NewTicket from "./pages/NewTicket"
 import Kanban from "./pages/Kanban";
+import AdminActions from "./pages/AdminActions";
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
         <Route path="tickets/:id" element={<TicketDetail />} />
         <Route path="users" element={<Users />} />
         <Route path="kanban" element={<Kanban />} />
+        <Route path="admin/actions" element={<AdminActions />} />
       </Route>
 
     </Routes>

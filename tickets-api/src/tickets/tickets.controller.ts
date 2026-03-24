@@ -10,6 +10,7 @@ import {
   UseGuards,
   UploadedFiles,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { TicketsService } from './tickets.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
@@ -80,6 +81,7 @@ export class TicketsController {
   }
 
   @Post(':id/messages')
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FilesInterceptor('files', 5, {
       storage: diskStorage({
@@ -110,12 +112,23 @@ export class TicketsController {
     return this.ticketsService.update(id, updateTicketDto);
   }
 
+  @Delete('all')
+  @UseGuards(JwtAuthGuard)
+  async deleteAll(@Req() req: any) {
+    // Solo permitir a admins o roles específicos
+    if (req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('No tienes permisos para esta acción');
+    }
+    return this.ticketsService.deleteAll();
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.ticketsService.remove(id);
   }
 
   @Patch(':id/status')
+  @UseGuards(JwtAuthGuard)
   updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateStatusDto,
@@ -125,6 +138,7 @@ export class TicketsController {
   }
 
   @Patch(':id/assign')
+  @UseGuards(JwtAuthGuard)
   assign(
     @Param('id') id: string,
     @Body() dto: AssignTicketDto,
