@@ -84,6 +84,7 @@ export class TicketsService {
             author: {
               select: { id: true, name: true, email: true, role: true },
             },
+            attachments: true,
           },
         },
       },
@@ -206,6 +207,7 @@ export class TicketsService {
       await this.prisma.ticketAttachment.createMany({
         data: files.map((f) => ({
           ticketId,
+          messageId: message.id,
           filename: f.filename,
           original: f.originalname,
           mime: f.mimetype,

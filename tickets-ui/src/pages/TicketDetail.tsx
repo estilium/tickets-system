@@ -15,6 +15,7 @@ export default function TicketDetail() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [users, setUsers] = useState<any[]>([])
   const [selectedUserId, setSelectedUserId] = useState<string>("")
+  const isRequester = currentUser?.role === "REQUESTER"
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user")
@@ -122,11 +123,12 @@ if (fileRef.current) {
   if (!ticket) return <div className="p-6">Loading...</div>
 
   return (
-    <div className="p-6">
+    <div className="p-6 space-y-6">
+      <div className="bg-white rounded-lg shadow p-6 space-y-6">
 
-{/* HEADER */}
-<div className="flex items-center justify-between mb-4">
-<div className="flex gap-4 mt-2 text-sm text-gray-600">
+        {/* HEADER */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex gap-4 mt-2 text-sm text-gray-600">
 
 
  <button
@@ -150,7 +152,7 @@ if (fileRef.current) {
   {/* DERECHA (acciones) */}
   <div className="flex gap-2 items-center">
     
-    {ticket.status !== "CLOSED" && (
+    {ticket.status !== "CLOSED" && !isRequester && (
       <>
         {ticket.assignedToId !== currentUser?.id && (
           <button
@@ -185,7 +187,7 @@ if (fileRef.current) {
       </>
     )}
 
-    {ticket.status !== "CLOSED" && (
+    {ticket.status !== "CLOSED" && !isRequester && (
       <button
         onClick={closeTicket}
         className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
@@ -216,54 +218,51 @@ if (fileRef.current) {
         {ticket.description}
       </p>
 
-      {/*SHOW IMG*/}
-      {ticket.attachments?.length > 0 && (
-      <div className="mb-6">
+      {/* SHOW INITIAL ATTACHMENT IMAGE */}
+      {ticket.attachments?.filter((a:any) => !a.messageId).length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm text-gray-500 mb-2">
+            <b>Imagen inicial del ticket:</b>
+          </h3>
+          <div className="flex gap-2 flex-wrap">
+            <img
+              key={ticket.attachments.filter((a:any) => !a.messageId)[0].id}
+              src={`http://localhost:3000${ticket.attachments.filter((a:any) => !a.messageId)[0].url}`}
+              onClick={() => setSelectedImage(`http://localhost:3000${ticket.attachments.filter((a:any) => !a.messageId)[0].url}`)}
+              className="w-48 h-48 object-cover rounded-xl cursor-pointer hover:scale-105 transition"
+            />
+          </div>
+        </div>
+      )}
+      </div>
 
-      <h3 className="text-sm text-gray-500 mb-2">
-        <b>Documentos Adjuntos:</b>
-      </h3>
-
-      <div className="flex gap-2 flex-wrap">
-
-      {ticket.attachments.map((a:any)=>(
-<img
-  key={a.id}
-  src={`http://localhost:3000${a.url}`}
-  onClick={() => setSelectedImage(`http://localhost:3000${a.url}`)}
-  className="w-32 h-32 object-cover rounded cursor-pointer hover:scale-105 transition"
-/>
-      ))}
-
-    </div>
-
-  </div>
-    )}
-
+      <div className="bg-white rounded-lg shadow p-6 space-y-6">
       {/* MESSAGES */}
-      <div className="space-y-3 mb-6">
+      <div className="space-y-4 mb-6">
 
         {ticket.messages?.map((m:any) => (
-
-          <div key={m.id} className="border p-3 rounded bg-white">
-
-            <div className="text-sm text-gray-500">
+          <div key={m.id} className="rounded-3xl bg-slate-100 p-4 shadow-sm">
+            <div className="text-xs text-gray-500 mb-2">
               {m.author?.name}
             </div>
-
-            <div>{m.content}</div>
-
-            {/* IMÁGENES */}
-            {m.attachments?.map((a:any)=>(
-              <img
-                key={a.id}
-                src={`http://localhost:3000${a.url}`}
-                className="mt-2 max-w-xs rounded"
-              />
-            ))}
-
+            {m.content && (
+              <div className="whitespace-pre-wrap text-gray-800">
+                {m.content}
+              </div>
+            )}
+            {m.attachments?.length > 0 && (
+              <div className="mt-3 grid grid-cols-1 gap-3">
+                {m.attachments.map((a:any) => (
+                  <img
+                    key={a.id}
+                    src={`http://localhost:3000${a.url}`}
+                    onClick={() => setSelectedImage(`http://localhost:3000${a.url}`)}
+                    className="w-full max-w-sm rounded-2xl object-cover shadow-sm cursor-pointer hover:opacity-90 transition"
+                  />
+                ))}
+              </div>
+            )}
           </div>
-
         ))}
 {selectedImage && (
   <div
@@ -300,24 +299,33 @@ if (fileRef.current) {
 
           </div>
 
-          <input
-            ref={fileRef}
-            type="file"
-            onChange={(e)=>setFile(e.target.files?.[0] || null)}
-          />
-
-          {file && (
-            <span className="text-xs text-gray-500">
-              {file.name}
-            </span>
-          )}
+          <div className="flex flex-col gap-2">
+            <input
+              ref={fileRef}
+              id="message-file-upload"
+              type="file"
+              className="hidden"
+              onChange={(e)=>setFile(e.target.files?.[0] || null)}
+            />
+            <label
+              htmlFor="message-file-upload"
+              className="inline-flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700 w-max"
+            >
+              Seleccionar archivo
+            </label>
+            {file && (
+              <span className="text-xs text-gray-500">
+                {file.name}
+              </span>
+            )}
+          </div>
 
         </div>
       )}
 
+      </div>
     </div>
 
-    
   )
 
   

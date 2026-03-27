@@ -10,11 +10,13 @@ export default function Tickets() {
   const [ticketLocation, setTicketLocation] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [categories, setCategories] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   // 🔥 modal state
   const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [attachment, setAttachment] = useState<File | null>(null);
   const [animate, setAnimate] = useState(false);
 
 
@@ -26,6 +28,10 @@ export default function Tickets() {
 
   useEffect(() => {
     loadTickets();
+    const rawUser = localStorage.getItem("user");
+    if (rawUser) {
+      setCurrentUser(JSON.parse(rawUser));
+    }
   }, []);
 
 useEffect(() => {
@@ -43,11 +49,17 @@ useEffect(() => {
     }
 
     try {
-      await api.post("/tickets", {
-        title,
-        description,
-        ticketLocation,
-        categoryId,
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("description", description);
+      formData.append("ticketLocation", ticketLocation);
+      formData.append("categoryId", categoryId);
+      if (attachment) {
+        formData.append("files", attachment);
+      }
+
+      await api.post("/tickets", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
       setShowModal(false);
@@ -55,6 +67,7 @@ useEffect(() => {
       setDescription("");
       setTicketLocation("");
       setCategoryId("");
+      setAttachment(null);
 
       loadTickets();
     } catch (err) {
@@ -65,7 +78,10 @@ useEffect(() => {
 
   const handleCloseModal = () => {
   setAnimate(false);
-  setTimeout(() => setShowModal(false), 200);
+  setTimeout(() => {
+    setShowModal(false);
+    setAttachment(null);
+  }, 200);
 };
 
   const filteredTickets = tickets.filter((t: any) =>
@@ -97,12 +113,14 @@ useEffect(() => {
       + New Ticket
     </button>
 
-    <Link
-      to="/kanban"
-      className="bg-gray-700 hover:bg-gray-900 text-white px-4 py-2 rounded"
-    >
-      Kanban
-    </Link>
+    {!currentUser?.role || currentUser.role !== "REQUESTER" ? (
+      <Link
+        to="/kanban"
+        className="bg-gray-700 hover:bg-gray-900 text-white px-4 py-2 rounded"
+      >
+        Kanban
+      </Link>
+    ) : null}
 
   </div>
 
@@ -164,7 +182,7 @@ useEffect(() => {
           
           <div
   className={`
-    bg-white p-6 rounded shadow w-[400px]
+    bg-white p-6 rounded shadow w-[540px]
     transform transition-all duration-300
     ${animate ? "scale-100 opacity-100" : "scale-90 opacity-0"}
   `}
@@ -184,8 +202,32 @@ useEffect(() => {
               placeholder="Descripción"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full border p-2 mb-4 rounded"
+              className="w-full border p-2 mb-4 rounded min-h-[170px]"
             />
+
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Imagen inicial (opcional)
+            </label>
+            <div className="flex flex-col gap-2 mb-3">
+              <input
+                id="ticket-image-upload"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setAttachment(e.target.files?.[0] ?? null)}
+                className="hidden"
+              />
+              <label
+                htmlFor="ticket-image-upload"
+                className="inline-flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700"
+              >
+                Seleccionar imagen
+              </label>
+              {attachment && (
+                <div className="text-sm text-gray-600">
+                  {attachment.name}
+                </div>
+              )}
+            </div>
             
                         <select
               value={ticketLocation}

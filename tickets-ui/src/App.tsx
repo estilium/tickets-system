@@ -1,7 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import MainLayout from "./layout/MainLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Dashboard from "./pages/Dashboard";
+import Home from "./pages/Home";
 import Tickets from "./pages/tickets";
 import TicketDetail from "./pages/TicketDetail";
 import Users from "./pages/Users";
@@ -25,7 +25,7 @@ function App() {
         }
       >
 
-        <Route index element={<Dashboard />} />
+        <Route index element={<Home />} />
         <Route path="tickets" element={<Tickets />} />
         <Route path="tickets/new" element={<NewTicket />} />
         <Route path="tickets/:id" element={<TicketDetail />} />

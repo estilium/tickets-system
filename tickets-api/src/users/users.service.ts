@@ -15,6 +15,7 @@ export class UsersService {
       },
       select: {
         id: true,
+        username: true,
         name: true,
         email: true,
       },
@@ -25,6 +26,7 @@ export class UsersService {
     return this.prisma.user.findMany({
       select: {
         id: true,
+        username: true,
         name: true,
         email: true,
         role: true,
@@ -40,6 +42,7 @@ export class UsersService {
       where: { id },
       select: {
         id: true,
+        username: true,
         name: true,
         email: true,
         role: true,
@@ -57,18 +60,25 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto) {
-    const existing = await this.prisma.user.findUnique({
+    const existingEmail = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
-
-    if (existing) {
+    if (existingEmail) {
       throw new BadRequestException('Email already exists');
+    }
+
+    const existingUsername = await this.prisma.user.findUnique({
+      where: { username: dto.username },
+    });
+    if (existingUsername) {
+      throw new BadRequestException('Username already exists');
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
     return this.prisma.user.create({
       data: {
+        username: dto.username,
         name: dto.name,
         email: dto.email,
         password: hashedPassword,
@@ -105,7 +115,17 @@ export class UsersService {
       }
     }
 
+    if (dto.username && dto.username !== user.username) {
+      const existingUsername = await this.prisma.user.findUnique({
+        where: { username: dto.username },
+      });
+      if (existingUsername) {
+        throw new BadRequestException('Username already exists');
+      }
+    }
+
     const data: any = {
+      username: dto.username,
       name: dto.name,
       email: dto.email,
       role: dto.role,

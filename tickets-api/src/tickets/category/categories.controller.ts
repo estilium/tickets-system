@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   Delete,
@@ -39,6 +40,11 @@ export class CategoriesController {
     @Body() updateCategoryDto: UpdateCategoryDto,
   ) {
     return this.categoriesService.update(id, updateCategoryDto);
+  }
+
+  @Patch('order')
+  reorder(@Body() body: { ids: string[] }) {
+    return this.categoriesService.reorder(body.ids);
   }
 
   @Delete(':id')

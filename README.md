@@ -10,10 +10,28 @@ Este proyecto fue desarrollado como parte de un proceso de autoaprendizaje con I
 
 ### 📌 Gestión de Tickets
 
-* Creación de tickets con título, descripción, ubicación y categoría
-* Asignación de tickets a agentes
-* Flujo de estados: **Open → In Progress → Closed**
+* Creación de tickets con título, descripción, ubicación, categoría e imagen inicial
+* Envío de mensajes dentro del ticket con adjuntos por mensaje
+* Vista detallada del ticket con título, descripción, imagen inicial, historial de mensajes y archivos
+* Asignación de tickets a agentes (solo roles de agente/manager)
+* Cierre de tickets
 * Historial y seguimiento de tickets
+
+---
+
+### 🗂️ Gestión de Categorías
+
+* Creación, edición y eliminación de categorías desde un modal en la página de usuarios
+* Reordenación de categorías por drag & drop
+* Persistencia del orden en la base de datos
+
+---
+
+### 🔐 Roles y permisos
+
+* `REQUESTER`: acceso limitado a Inicio y Tickets
+* `REQUESTER`: no ve Usuarios, Kanban ni opciones de asignación/cierre en Ticket Detail
+* `AGENT`/`ADMIN`: acceso completo a Tickets, Dashboard, Kanban y gestión de usuarios
 
 ---
 

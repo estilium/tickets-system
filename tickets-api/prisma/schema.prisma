@@ -22,8 +22,9 @@ enum Role {
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
+  username  String   @unique
   name      String
-  password String
+  password  String
   role      Role     @default(REQUESTER)
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -74,11 +75,13 @@ model TicketMessage {
   authorId String
 
   createdAt DateTime @default(now())
+  attachments TicketAttachment[]
 }
 
 model Category {
   id    String  @id @default(uuid())
   name  String
+  order Int     @default(0)
   tickets Ticket[]
 }
 
@@ -111,6 +114,9 @@ model TicketAttachment {
   ticketId  String
   ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
+  messageId String?
+  message   TicketMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
   filename  String
   original  String
   mime      String
@@ -118,4 +124,6 @@ model TicketAttachment {
   url       String
 
   createdAt DateTime @default(now())
+
+  @@index([messageId])
 }

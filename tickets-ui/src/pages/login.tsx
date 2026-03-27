@@ -6,7 +6,7 @@ export default function Login() {
 
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   async function handleLogin(e: any) {
@@ -15,7 +15,7 @@ export default function Login() {
     try {
 
       const res = await api.post("/auth/login", {
-        email,
+        username,
         password,
       });
 
@@ -46,9 +46,9 @@ export default function Login() {
 
         <input
           className="w-full border p-2 mb-4"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Nombre"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
         />
 
         <input
