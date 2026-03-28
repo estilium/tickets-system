@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/api";
+import { useSocketEvent } from "../hooks/useRealtime";
 
 export default function Tickets() {
 
@@ -25,6 +26,21 @@ export default function Tickets() {
     setTickets(res.data.data);
     setLoading(false);
   }
+
+  useSocketEvent("ticket.updated", (updated: any) => {
+    setTickets((prev) =>
+      prev.map((ticket) => (ticket.id === updated.id ? { ...ticket, ...updated } : ticket)),
+    );
+  });
+
+  useSocketEvent("ticket.created", (newTicket: any) => {
+    setTickets((prev) => {
+      if (prev.some((ticket) => ticket.id === newTicket.id)) {
+        return prev;
+      }
+      return [newTicket, ...prev];
+    });
+  });
 
   useEffect(() => {
     loadTickets();
@@ -165,13 +181,16 @@ useEffect(() => {
 
             </div>
         <div className="flex justify-between items-center mt-3 text-sm">
-           <div className="text-gray-400">
-              Ticket #{t.id.slice(0, 6)}
+          <div className="text-gray-400">
+             Ticket #{t.id.slice(0, 6)}
             </div>
 
             <div className="text-gray-600">
               👤 {t.assignedTo?.name ?? "Unassigned"}
           </div>
+        </div>
+        <div className="text-xs text-gray-500 mt-2">
+          Creado por {t.requester?.name ?? t.requester?.email ?? "desconocido"}
         </div>
         </Link>
       ))}

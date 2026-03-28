@@ -19,9 +19,9 @@ export default function TicketDetail() {
   const isRequester = currentUser?.role === "REQUESTER"
   const handleRealtimeMessage = useCallback(
     (payload: any) => {
-      if (!ticket || payload.ticketId !== ticket.id) return
-      setTicket((prev) =>
-        prev
+      if (payload.ticketId !== id) return
+      setTicket((prev: any) =>
+        prev && prev.id === id
           ? {
               ...prev,
               messages: [...(prev.messages ?? []), payload],
@@ -29,13 +29,13 @@ export default function TicketDetail() {
           : prev,
       )
     },
-    [ticket?.id],
+    [id],
   )
 
   const handleRealtimeTicketUpdated = useCallback(
     (payload: any) => {
-      if (!ticket || payload.id !== ticket.id) return
-      setTicket((prev) =>
+      if (payload.id !== id) return
+      setTicket((prev: any) =>
         prev
           ? {
               ...prev,
@@ -45,7 +45,7 @@ export default function TicketDetail() {
           : prev,
       )
     },
-    [ticket?.id],
+    [id],
   )
 
   useSocketEvent("message.created", handleRealtimeMessage)

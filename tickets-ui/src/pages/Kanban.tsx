@@ -21,8 +21,6 @@ export default function Kanban() {
     loadTickets();
   }, []);
 
-  if (loading) return <div className="p-4">Loading...</div>;
-
   // 🔥 agrupamos por status
 const columns = {
   OPEN: tickets.filter(t => t.status === "OPEN"),
@@ -42,6 +40,8 @@ const columns = {
       return [...prev, newTicket];
     });
   });
+
+  if (loading) return <div className="p-4">Loading...</div>;
 
 const handleDragEnd = async (event: any) => {
   const { active, over } = event;

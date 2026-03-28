@@ -6,11 +6,15 @@ import { ValidationPipe } from '@nestjs/common';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ALLOWED_ORIGINS } from './common/constants/allowed-origins';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   const allowedOriginsSet = new Set(ALLOWED_ORIGINS);
+
+  // Responder peticiones WebSocket con socket.io
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   //Conexion Back to Front
   app.enableCors({
