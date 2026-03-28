@@ -1,118 +1,107 @@
-# 🎫 Sistema de Gestión de Tickets
+# 🎬 Sistema de Gestión de Tickets
 
-Aplicación web fullstack para la gestión de tickets, diseñada para simular un entorno real de soporte técnico y operaciones.
-
-Este proyecto fue desarrollado como parte de un proceso de autoaprendizaje con IA enfocado en la construcción de sistemas reales, arquitectura backend y experiencia de usuario.
+Aplicación web fullstack para la gestión de tickets, diseñada para simular un entorno real de soporte técnico y operaciones. Este repositorio contiene la API en NestJS/Prisma y la UI en React/Vite con Tailwind.
 
 ---
 
 ## 🚀 Funcionalidades principales
 
-### 📌 Gestión de Tickets
+### 🗂 Gestión de Tickets
 
 * Creación de tickets con título, descripción, ubicación, categoría e imagen inicial
-* Envío de mensajes dentro del ticket con adjuntos por mensaje
-* Vista detallada del ticket con título, descripción, imagen inicial, historial de mensajes y archivos
-* Asignación de tickets a agentes (solo roles de agente/manager)
-* Cierre de tickets
-* Historial y seguimiento de tickets
+* Envío de mensajes dentro del ticket con adjuntos por mensaje y visualización del hilo completo
+* Vista detallada con imagen inicial, historial, archivos y usuarios asignados
+* Asignación a agentes y cierre de tickets desde la UI (solo AGENT/ADMIN)
+* Filtros para ocultar tickets cerrados y mostrar los más recientes al principio
+* Las tarjetas muestran quién creó el ticket y tienen una línea de color lateral (como el dashboard) según el estado
+* Los archivos adjuntos se sirven desde `/uploads` y pueden visualizarse desde otras máquinas apuntando al host de la API
 
----
+### 🧾 Gestión de categorías
 
-### 🗂️ Gestión de Categorías
-
-* Creación, edición y eliminación de categorías desde un modal en la página de usuarios
-* Reordenación de categorías por drag & drop
-* Persistencia del orden en la base de datos
-
----
+* Creación, edición y eliminación de categorías desde el modal de usuarios
+* Reordenación con drag & drop y persistencia automática
 
 ### 🔐 Roles y permisos
 
-* `REQUESTER`: acceso limitado a Inicio y Tickets
-* `REQUESTER`: no ve Usuarios, Kanban ni opciones de asignación/cierre en Ticket Detail
-* `AGENT`/`ADMIN`: acceso completo a Tickets, Dashboard, Kanban y gestión de usuarios
+* `REQUESTER`: acceso limitado a Inicio y Tickets (no ve usuarios ni Kanban)
+* `AGENT`/`ADMIN`: pueden ver dashboard, Kanban, usuarios y asignar/editar/crear tickets y usuarios
+* Usuarios ADMIN solo pueden ser creados o eliminados por ADMIN
 
----
-
-### 📊 Dashboard (Metrics)
+### 📊 Dashboard (métricas)
 
 * Total de tickets
-* Tickets por estado
-* MTTR (Mean Time To Resolution)
-* Visualización mediante gráficas
-
----
+* Tickets abiertos, en progreso y cerrados (con bordes coloreados)
+* MTTR (Mean Time To Resolution) y gráficos de tendencias
 
 ### 📋 Kanban Board
 
-* Visualización de tickets por estado (Open / In Progress / Closed)
-* Interfaz tipo tablero para seguimiento de flujo de trabajo
-* Funcionalidad de arrastrar y soltar (drag & drop)
-* Actualización de estado en tiempo real al mover tickets
-* Sincronización con backend para persistencia de cambios
+* Vista por columnas (Open / In Progress / Closed) con tarjetas arrastrables
+* Actualizaciones en tiempo real al mover tickets o recibir nuevos eventos
+* Sincronización inmediata con la API al confirmar cambios
+
+### ⚡ Actualizaciones en vivo y mensajería
+
+* Gateway Socket.io con eventos `ticket.created`, `ticket.updated` y `message.created`
+* Frontend suscrito desde `useSocketEvent`: lista, Kanban y detalle se actualizan sin recargar
+* Las conversaciones nuevas se muestran instantáneamente y el requester puede ver el historial completo
+
+### 🌐 Acceso remoto
+
+* Levanta el backend con `npm run start:dev -- --host 0.0.0.0 --port 3000` y el frontend con `npm run dev -- --host 0.0.0.0 --port 4173`
+* Actualiza `tickets-ui/src/api/api.ts` para usar `http://<IP>:3000/api` cuando se accede desde otra máquina
+* El backend habilita CORS (dominios permitidos) y expone `/uploads` para mostrar archivos desde la red
 
 ---
 
-## 🧩 Estructura del Proyecto
+## 🧰 Estructura
 
-El proyecto está dividido en dos aplicaciones principales:
-
-* **/tickets-api** → Backend (API REST)
-* **/tickets-ui** → Frontend (Interfaz de usuario)
+* `/tickets-api`: backend NestJS con Prisma, JWT, socket.io y filtros de error
+* `/tickets-ui`: frontend Vite con React 19, Tailwind, dnd-kit y Socket.io client
 
 ---
 
-## 🛠️ Tecnologías utilizadas
+## 🛠 Tecnologías
 
 ### Backend
 
 * Node.js
 * NestJS
-* Prisma ORM
-* PostgreSQL
+* Prisma ORM + PostgreSQL
+* Socket.io para eventos en vivo
 
 ### Frontend
 
-* React
+* React 19
 * Vite
 * TypeScript
 * TailwindCSS
-
-### Otros
-
-* Axios (consumo de API)
-* Chart.js (gráficas)
-* dnd-kit (drag & drop en Kanban)
+* Axios
+* chart.js y dnd-kit
 
 ---
 
-## 🧠 Enfoque del proyecto
+## ⚙️ Enfoque del proyecto
 
-Este sistema fue desarrollado con el objetivo de:
-
-* Simular un entorno real de trabajo en desarrollo fullstack
-* Aplicar buenas prácticas en arquitectura backend y frontend
-* Implementar funcionalidades comunes en herramientas empresariales (tipo Jira o ServiceNow)
-* Mejorar habilidades en integración de APIs, manejo de estado y diseño de interfaces
+* Replicar un flujo de trabajo tipo Jira/ServiceNow
+* Aplicar buenas prácticas en arquitectura fullstack
+* Integrar en tiempo real APIs, WebSockets y UI reactiva
 
 ---
 
-## 📋 Próximas mejoras
+## ✨ Próximas mejoras
 
-* Notificaciones en tiempo real
-* Mejora del sistema de roles y permisos
-* Optimización de rendimiento en Kanban (sin recarga)
-* Sistema de comentarios y archivos por mensaje
-
----
-
-## 👨‍💻 Autor
-
-Desarrollado por Wallter Barbosa (Estilium)
+* Notificaciones en vivo (toasts o badges con eventos)
+* Sistema de roles más granular y revisiones de seguridad
+* Optimización del rendimiento en Kanban y listas de tickets
 
 ---
 
-## 📌 Notas
+## ✍️ Autor
 
-Este proyecto continúa en evolución como parte de aprendizaje continuo y mejora de habilidades en desarrollo de software.
+Desarrollado por Walter Barbosa (Estilium)
+
+---
+
+## 📝 Notas
+
+El proyecto continúa evolucionando como parte del aprendizaje en desarrollo de software fullstack.
