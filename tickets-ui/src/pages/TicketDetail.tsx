@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { api } from "../api/api"
+import { useSocketEvent, getAttachmentUrl } from "../hooks/useRealtime"
 
 
 export default function TicketDetail() {
@@ -16,6 +17,39 @@ export default function TicketDetail() {
   const [users, setUsers] = useState<any[]>([])
   const [selectedUserId, setSelectedUserId] = useState<string>("")
   const isRequester = currentUser?.role === "REQUESTER"
+  const handleRealtimeMessage = useCallback(
+    (payload: any) => {
+      if (!ticket || payload.ticketId !== ticket.id) return
+      setTicket((prev) =>
+        prev
+          ? {
+              ...prev,
+              messages: [...(prev.messages ?? []), payload],
+            }
+          : prev,
+      )
+    },
+    [ticket?.id],
+  )
+
+  const handleRealtimeTicketUpdated = useCallback(
+    (payload: any) => {
+      if (!ticket || payload.id !== ticket.id) return
+      setTicket((prev) =>
+        prev
+          ? {
+              ...prev,
+              ...payload,
+              messages: prev.messages ?? [],
+            }
+          : prev,
+      )
+    },
+    [ticket?.id],
+  )
+
+  useSocketEvent("message.created", handleRealtimeMessage)
+  useSocketEvent("ticket.updated", handleRealtimeTicketUpdated)
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user")
@@ -122,6 +156,11 @@ if (fileRef.current) {
 
   if (!ticket) return <div className="p-6">Loading...</div>
 
+  const primaryAttachment = ticket.attachments?.find((a: any) => !a.messageId)
+  const primaryAttachmentUrl = primaryAttachment
+    ? getAttachmentUrl(primaryAttachment.url)
+    : null
+
   return (
     <div className="p-6 space-y-6">
       <div className="bg-white rounded-lg shadow p-6 space-y-6">
@@ -219,16 +258,16 @@ if (fileRef.current) {
       </p>
 
       {/* SHOW INITIAL ATTACHMENT IMAGE */}
-      {ticket.attachments?.filter((a:any) => !a.messageId).length > 0 && (
+      {primaryAttachment && (
         <div className="mb-6">
           <h3 className="text-sm text-gray-500 mb-2">
             <b>Imagen inicial del ticket:</b>
           </h3>
           <div className="flex gap-2 flex-wrap">
             <img
-              key={ticket.attachments.filter((a:any) => !a.messageId)[0].id}
-              src={`http://localhost:3000${ticket.attachments.filter((a:any) => !a.messageId)[0].url}`}
-              onClick={() => setSelectedImage(`http://localhost:3000${ticket.attachments.filter((a:any) => !a.messageId)[0].url}`)}
+              key={primaryAttachment.id}
+              src={primaryAttachmentUrl ?? undefined}
+              onClick={() => primaryAttachmentUrl && setSelectedImage(primaryAttachmentUrl)}
               className="w-48 h-48 object-cover rounded-xl cursor-pointer hover:scale-105 transition"
             />
           </div>
@@ -252,14 +291,17 @@ if (fileRef.current) {
             )}
             {m.attachments?.length > 0 && (
               <div className="mt-3 grid grid-cols-1 gap-3">
-                {m.attachments.map((a:any) => (
-                  <img
-                    key={a.id}
-                    src={`http://localhost:3000${a.url}`}
-                    onClick={() => setSelectedImage(`http://localhost:3000${a.url}`)}
-                    className="w-full max-w-sm rounded-2xl object-cover shadow-sm cursor-pointer hover:opacity-90 transition"
-                  />
-                ))}
+                {m.attachments.map((a:any) => {
+                  const attachmentUrl = getAttachmentUrl(a.url)
+                  return (
+                    <img
+                      key={a.id}
+                      src={attachmentUrl}
+                      onClick={() => setSelectedImage(attachmentUrl)}
+                      className="w-full max-w-sm rounded-2xl object-cover shadow-sm cursor-pointer hover:opacity-90 transition"
+                    />
+                  )
+                })}
               </div>
             )}
           </div>

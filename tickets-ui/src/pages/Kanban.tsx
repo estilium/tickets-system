@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { DndContext } from "@dnd-kit/core";
 import { useDraggable } from "@dnd-kit/core";
 import { useDroppable } from "@dnd-kit/core";
+import { useSocketEvent } from "../hooks/useRealtime";
 
 export default function Kanban() {
 
@@ -23,11 +24,24 @@ export default function Kanban() {
   if (loading) return <div className="p-4">Loading...</div>;
 
   // 🔥 agrupamos por status
-  const columns = {
-    OPEN: tickets.filter(t => t.status === "OPEN"),
-    IN_PROGRESS: tickets.filter(t => t.status === "IN_PROGRESS"),
-    CLOSED: tickets.filter(t => t.status === "CLOSED"),
-  };
+const columns = {
+  OPEN: tickets.filter(t => t.status === "OPEN"),
+  IN_PROGRESS: tickets.filter(t => t.status === "IN_PROGRESS"),
+  CLOSED: tickets.filter(t => t.status === "CLOSED"),
+};
+
+  useSocketEvent("ticket.updated", (updated: any) => {
+    setTickets((prev) =>
+      prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)),
+    );
+  });
+
+  useSocketEvent("ticket.created", (newTicket: any) => {
+    setTickets((prev) => {
+      if (prev.some((t) => t.id === newTicket.id)) return prev;
+      return [...prev, newTicket];
+    });
+  });
 
 const handleDragEnd = async (event: any) => {
   const { active, over } = event;

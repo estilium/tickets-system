@@ -11,6 +11,16 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { api } from "../api/api";
 
+function getCurrentUserRole(): string | null {
+  const raw = localStorage.getItem("user");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw)?.role ?? null;
+  } catch {
+    return null;
+  }
+}
+
 type User = {
   id: string;
   username: string;
@@ -48,6 +58,10 @@ export default function Users() {
   const [error, setError] = useState("");
   const [categoryError, setCategoryError] = useState("");
   const navigate = useNavigate();
+  const currentRole = getCurrentUserRole();
+  const isAgent = currentRole === "AGENT";
+  const isAdmin = currentRole === "ADMIN";
+  const roleOptions = isAgent ? ["REQUESTER", "AGENT"] : ["REQUESTER", "AGENT", "ADMIN"];
 
   useEffect(() => {
     loadUsers();
@@ -143,6 +157,11 @@ export default function Users() {
       return;
     }
 
+    if (isAgent && form.role === "ADMIN") {
+      setError("Los agentes no pueden crear usuarios ADMIN");
+      return;
+    }
+
     try {
       if (editingUser) {
         await api.patch(`/users/${editingUser.id}`, {
@@ -171,7 +190,11 @@ export default function Users() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, targetRole: string) => {
+    if (isAgent && targetRole === "ADMIN") {
+      alert("No puedes eliminar administradores");
+      return;
+    }
     const confirmed = window.confirm("¿Eliminar este usuario?");
     if (!confirmed) return;
 
@@ -264,29 +287,38 @@ export default function Users() {
                 <td className="px-4 py-4" colSpan={5}>No hay usuarios registrados.</td>
               </tr>
             ) : (
-              users.map((user) => (
-                <tr key={user.id} className="border-t">
-                  <td className="px-4 py-3">{user.name}</td>
-                  <td className="px-4 py-3">{user.username}</td>
-                  <td className="px-4 py-3">{user.email}</td>
-                  <td className="px-4 py-3">{user.role}</td>
-                  <td className="px-4 py-3">{user.active ? 'Sí' : 'No'}</td>
-                  <td className="px-4 py-3 space-x-2">
-                    <button
-                      onClick={() => openEditUser(user)}
-                      className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(user.id)}
-                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                    >
-                      Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))
+              users.map((user) => {
+                const deleteDisabled = isAgent && user.role === "ADMIN";
+                const editDisabled = !isAdmin;
+
+                return (
+                  <tr key={user.id} className="border-t">
+                    <td className="px-4 py-3">{user.name}</td>
+                    <td className="px-4 py-3">{user.username}</td>
+                    <td className="px-4 py-3">{user.email}</td>
+                    <td className="px-4 py-3">{user.role}</td>
+                    <td className="px-4 py-3">{user.active ? 'Sí' : 'No'}</td>
+                    <td className="px-4 py-3 space-x-2">
+                      <button
+                        onClick={() => isAdmin && openEditUser(user)}
+                        disabled={editDisabled}
+                        title={editDisabled ? "Solo ADMIN puede editar usuarios" : undefined}
+                        className={`px-3 py-1 bg-yellow-500 text-white rounded ${editDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-yellow-600"}`}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(user.id, user.role)}
+                        disabled={deleteDisabled}
+                        title={deleteDisabled ? "No puedes eliminar administradores" : undefined}
+                        className={`px-3 py-1 bg-red-600 text-white rounded ${deleteDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-red-700"}`}
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -358,9 +390,11 @@ export default function Users() {
                   onChange={(e) => handleChange('role', e.target.value)}
                   className="w-full border p-2 rounded"
                 >
-                  <option value="REQUESTER">REQUESTER</option>
-                  <option value="AGENT">AGENT</option>
-                  <option value="ADMIN">ADMIN</option>
+                  {roleOptions.map((roleOption) => (
+                    <option key={roleOption} value={roleOption}>
+                      {roleOption}
+                    </option>
+                  ))}
                 </select>
                 <label className="flex items-center gap-2">
                   <input

@@ -8,10 +8,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { Prisma } from '@prisma/client';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Injectable()
 export class TicketsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private realtime: RealtimeGateway) {}
 
   async findAll(user: any, query: any) {
     const page = Number(query.page ?? 1);
@@ -131,10 +132,20 @@ export class TicketsService {
         });
       }
 
-      return tx.ticket.findUnique({
+      const createdTicket = await tx.ticket.findUnique({
         where: { id: ticket.id },
-        include: { attachments: true },
+        include: {
+          attachments: true,
+          requester: true,
+          assignedTo: true,
+          category: true,
+        },
       });
+      if (createdTicket) {
+        this.realtime.emitTicketCreated(createdTicket);
+      }
+
+      return createdTicket;
     });
   }
 
@@ -217,7 +228,21 @@ export class TicketsService {
       });
     }
 
-    return message;
+    const messageWithExtras = await this.prisma.ticketMessage.findUnique({
+      where: { id: message.id },
+      include: {
+        author: {
+          select: { id: true, name: true, email: true, role: true },
+        },
+        attachments: true,
+      },
+    });
+
+    if (messageWithExtras) {
+      this.realtime.emitMessageCreated(messageWithExtras);
+    }
+
+    return messageWithExtras ?? message;
   }
 
   async updateStatus(
@@ -252,6 +277,12 @@ export class TicketsService {
           status: status as any,
           ...(closedAtValue !== undefined ? { closedAt: closedAtValue } : {}),
         },
+        include: {
+          requester: true,
+          assignedTo: true,
+          category: true,
+          attachments: true,
+        },
       });
 
       await tx.ticketMessage.create({
@@ -272,6 +303,7 @@ export class TicketsService {
         });
       }
 
+      this.realtime.emitTicketUpdated(updated);
       return updated;
     });
   }
@@ -310,6 +342,12 @@ export class TicketsService {
           assignedToId,
           status: ticket.status === 'OPEN' ? 'IN_PROGRESS' : ticket.status,
         },
+        include: {
+          requester: true,
+          assignedTo: true,
+          category: true,
+          attachments: true,
+        },
       });
 
       await tx.ticketMessage.create({
@@ -320,6 +358,7 @@ export class TicketsService {
         },
       });
 
+      this.realtime.emitTicketUpdated(updated);
       return updated;
     });
   }

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
@@ -28,9 +28,8 @@ export class UsersController {
   }
 
   @Post()
-  @UseGuards(AdminGuard)
-  create(@Body() dto: CreateUserDto) {
-    return this.usersService.create(dto);
+  create(@Body() dto: CreateUserDto, @Req() req: any) {
+    return this.usersService.create(dto, req.user);
   }
 
   @Patch(':id')
@@ -40,8 +39,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @UseGuards(AdminGuard)
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.usersService.remove(id, req.user);
   }
 }

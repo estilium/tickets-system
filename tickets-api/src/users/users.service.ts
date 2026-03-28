@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -59,7 +59,15 @@ export class UsersService {
     return user;
   }
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto, actor: any) {
+    if (!actor || (actor.role !== 'ADMIN' && actor.role !== 'AGENT')) {
+      throw new ForbiddenException('No tienes permisos para crear usuarios');
+    }
+
+    if (actor.role === 'AGENT' && dto.role === 'ADMIN') {
+      throw new ForbiddenException('Los agentes no pueden crear administradores');
+    }
+
     const existingEmail = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -151,7 +159,24 @@ export class UsersService {
     });
   }
 
-  async remove(id: string) {
+  async remove(id: string, actor: any) {
+    if (!actor || (actor.role !== 'ADMIN' && actor.role !== 'AGENT')) {
+      throw new ForbiddenException('No tienes permisos para eliminar usuarios');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { role: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role === 'ADMIN' && actor.role !== 'ADMIN') {
+      throw new ForbiddenException('Solo ADMIN puede eliminar administradores');
+    }
+
     return this.prisma.user.delete({
       where: { id },
     });
