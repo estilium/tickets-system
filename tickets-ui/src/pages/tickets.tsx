@@ -12,6 +12,7 @@ export default function Tickets() {
   const [categoryId, setCategoryId] = useState("");
   const [categories, setCategories] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showClosed, setShowClosed] = useState(true);
 
   // 🔥 modal state
   const [showModal, setShowModal] = useState(false);
@@ -100,11 +101,13 @@ useEffect(() => {
   }, 200);
 };
 
-  const filteredTickets = tickets.filter((t: any) =>
-    t.title?.toLowerCase().includes(search.toLowerCase()) ||
-    t.description?.toLowerCase().includes(search.toLowerCase()) ||
-    t.assignedTo?.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredTickets = tickets
+    .filter((t: any) => showClosed || t.status !== "CLOSED")
+    .filter((t: any) =>
+      t.title?.toLowerCase().includes(search.toLowerCase()) ||
+      t.description?.toLowerCase().includes(search.toLowerCase()) ||
+      t.assignedTo?.name?.toLowerCase().includes(search.toLowerCase())
+    );
 
   if (loading) return <div>Loading...</div>;
 
@@ -141,15 +144,25 @@ useEffect(() => {
   </div>
 
 </div>
-      {/* buscador */}
-      <div className="flex mb-4">
+      {/* buscador y filtros */}
+      <div className="flex flex-col gap-2 mb-4 md:flex-row md:items-center md:justify-between">
         <input
           type="text"
           placeholder="Search tickets..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border rounded p-2 w-full"
+          className="border rounded p-2 w-full md:w-1/2"
         />
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={showClosed}
+              onChange={() => setShowClosed((prev) => !prev)}
+            />
+            Mostrar tickets cerrados
+          </label>
+        </div>
       </div>
 
       {/* cards */}
