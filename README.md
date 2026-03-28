@@ -98,7 +98,7 @@ Aplicación web fullstack para la gestión de tickets, diseñada para simular un
 
 ## ✍️ Autor
 
-Desarrollado por Walter Barbosa (Estilium)
+Desarrollado por Walter Barbosa (Estilium).
 
 ---
 
