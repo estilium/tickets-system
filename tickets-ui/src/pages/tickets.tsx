@@ -3,6 +3,17 @@ import { Link } from "react-router-dom";
 import { api } from "../api/api";
 import { useSocketEvent } from "../hooks/useRealtime";
 
+const statusBorderColors: Record<string, string> = {
+  OPEN: "border-blue-500",
+  IN_PROGRESS: "border-yellow-500",
+  CLOSED: "border-green-500",
+};
+
+const ticketCardClass = (status: string) =>
+  `block bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow-md transition border-l-4 p-4 ${
+    statusBorderColors[status] ?? "border-gray-400"
+  }`;
+
 export default function Tickets() {
 
   const [tickets, setTickets] = useState<any[]>([]);
@@ -167,11 +178,7 @@ useEffect(() => {
 
       {/* cards */}
       {filteredTickets.map((t: any) => (
-        <Link
-          key={t.id}
-          to={`/tickets/${t.id}`}
-          className="block bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition"
-        >
+        <Link key={t.id} to={`/tickets/${t.id}`} className={ticketCardClass(t.status)}>
         <div className="flex justify-between items-center">
             <div className="font-semibold text-lg">{t.title}</div>
             <StatusBadge status={t.status} />
@@ -322,8 +329,8 @@ useEffect(() => {
 
 function StatusBadge({ status }: any) {
   const colors: any = {
-    OPEN: "bg-yellow-100 text-yellow-800",
-    IN_PROGRESS: "bg-blue-100 text-blue-800",
+    OPEN: "bg-blue-300 text-blue-800",
+    IN_PROGRESS: "bg-yellow-100 text-yellow-800",
     CLOSED: "bg-green-100 text-green-800"
   };
 

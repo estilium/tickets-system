@@ -17,7 +17,7 @@ export default function Home() {
   if (role === "REQUESTER") {
     return (
       <div className="p-4">
-        <h1 className="text-2xl font-bold mb-4">Inicio</h1>
+        <h1 className="text-4xl font-bold mb-4">Bienvenido ¿En que podemos ayudarte?</h1>
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-gray-600">Aquí podrás ver tus avisos e información de inicio.</p>
         </div>

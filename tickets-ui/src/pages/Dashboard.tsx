@@ -60,7 +60,7 @@ export default function Dashboard() {
       {/* 🔹 Cards */}  
       <div className="grid grid-cols-4 gap-4">
         <Card title="Total" value={data.total} />
-        <Card title="Open" value={data.openTickets} color="border-red-500" />
+        <Card title="Open" value={data.openTickets} color="border-blue-500" />
         <Card title="In Progress" value={data.inProgressTickets} color="border-yellow-500" />
         <Card title="Closed" value={data.closedTickets} color="border-green-500" />
       </div>
