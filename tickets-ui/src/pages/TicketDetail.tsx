@@ -16,7 +16,13 @@ export default function TicketDetail() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [users, setUsers] = useState<any[]>([])
   const [selectedUserId, setSelectedUserId] = useState<string>("")
+  const [showDeleteTicketModal, setShowDeleteTicketModal] = useState(false)
+  const [isDeletingTicket, setIsDeletingTicket] = useState(false)
   const isRequester = currentUser?.role === "REQUESTER"
+  const isAdmin = currentUser?.role === "ADMIN"
+  const [messageToDelete, setMessageToDelete] = useState<string | null>(null)
+  const [isDeletingMessage, setIsDeletingMessage] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
   const handleRealtimeMessage = useCallback(
     (payload: any) => {
       if (payload.ticketId !== id) return
@@ -150,6 +156,53 @@ if (fileRef.current) {
     }
   }
 
+  async function handleDeleteMessage() {
+    if (!ticket || !messageToDelete) return;
+    setIsDeletingMessage(true);
+
+    try {
+      await api.delete(`/tickets/${ticket.id}/messages/${messageToDelete}`);
+      setTicket((prev) =>
+        prev
+          ? {
+              ...prev,
+              messages: prev.messages?.filter((m: any) => m.id !== messageToDelete) ?? [],
+            }
+          : prev,
+      );
+      setToast({ message: "Mensaje eliminado", type: "success" });
+      setMessageToDelete(null);
+    } catch (err) {
+      console.error("Error deleting message", err);
+      setToast({ message: "No se pudo eliminar el mensaje", type: "error" });
+    } finally {
+      setIsDeletingMessage(false);
+    }
+  }
+
+  async function handleDeleteTicket() {
+    if (!ticket) return;
+    setIsDeletingTicket(true);
+
+    try {
+      await api.delete(`/tickets/${ticket.id}`);
+      setToast({ message: "Ticket eliminado", type: "success" });
+      setShowDeleteTicketModal(false);
+      navigate("/tickets");
+    } catch (err) {
+      console.error("Error deleting ticket", err);
+      setToast({ message: "No se pudo eliminar el ticket", type: "error" });
+    } finally {
+      setIsDeletingTicket(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3200);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
   useEffect(() => {
     loadTicket()
   }, [])
@@ -235,6 +288,15 @@ if (fileRef.current) {
       </button>
     )}
 
+    {isAdmin && (
+      <button
+        onClick={() => setShowDeleteTicketModal(true)}
+        className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+      >
+        Eliminar ticket
+      </button>
+    )}
+
   </div>
 
 </div>
@@ -282,7 +344,17 @@ if (fileRef.current) {
         {ticket.messages?.map((m:any) => (
           <div key={m.id} className="rounded-3xl bg-slate-100 p-4 shadow-sm">
             <div className="text-xs text-gray-500 mb-2">
-              {m.author?.name}
+              <div className="flex items-center justify-between">
+                <span>{m.author?.name}</span>
+                {isAdmin && (
+                  <button
+                    className="text-red-600 text-[10px] uppercase tracking-wide"
+                    onClick={() => setMessageToDelete(m.id)}
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
             </div>
             {m.content && (
               <div className="whitespace-pre-wrap text-gray-800">
@@ -366,6 +438,68 @@ if (fileRef.current) {
       )}
 
       </div>
+      {messageToDelete && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <p className="text-sm text-gray-700 mb-4">
+              Eliminarás permanentemente este mensaje. ¿Deseas continuar?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                onClick={() => setMessageToDelete(null)}
+                disabled={isDeletingMessage}
+              >
+                Cancelar
+              </button>
+              <button
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                onClick={handleDeleteMessage}
+                disabled={isDeletingMessage}
+              >
+                {isDeletingMessage ? "Eliminando…" : "Eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteTicketModal && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <p className="text-sm text-gray-700 mb-4">
+              Este ticket se eliminará permanentemente junto con sus mensajes y archivos.
+              ¿Deseas continuar?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                onClick={() => setShowDeleteTicketModal(false)}
+                disabled={isDeletingTicket}
+              >
+                Cancelar
+              </button>
+              <button
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                onClick={handleDeleteTicket}
+                disabled={isDeletingTicket}
+              >
+                {isDeletingTicket ? "Eliminando…" : "Eliminar ticket"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 px-4 py-3 rounded shadow-lg text-sm ${
+            toast.type === "success" ? "bg-green-600 text-white" : "bg-red-600 text-white"
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
     </div>
 
   )

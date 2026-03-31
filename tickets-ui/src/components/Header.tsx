@@ -12,7 +12,7 @@ export default function Header() {
   return (
     <div className="h-16 bg-white border-b flex items-center justify-between px-6">
 
-      <span className="font-semibold">Bienvenido</span>
+      <span className="font-semibold">IT-SUPPORT | Bienvenidos</span>
 
       <button
         onClick={logout}

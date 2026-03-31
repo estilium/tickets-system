@@ -15,6 +15,8 @@ Aplicación web fullstack para la gestión de tickets, diseñada para simular un
 * Filtros para ocultar tickets cerrados y mostrar los más recientes al principio
 * Las tarjetas muestran quién creó el ticket y tienen una línea de color lateral (como el dashboard) según el estado
 * Los archivos adjuntos se sirven desde `/uploads` y pueden visualizarse desde otras máquinas apuntando al host de la API
+* Los admins pueden eliminar mensajes individuales con confirmación modal y toast de resultado
+* Los admins también pueden eliminar tickets completos desde el detalle, liberando espacio y limpiando la cola
 
 ### 🧾 Gestión de categorías
 

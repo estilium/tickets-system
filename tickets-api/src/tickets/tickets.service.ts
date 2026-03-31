@@ -168,7 +168,20 @@ export class TicketsService {
 
   async remove(id: string) {
     try {
-      return await this.prisma.ticket.delete({ where: { id } });
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.ticketAttachment.deleteMany({ where: { ticketId: id } });
+        await tx.ticketMessage.deleteMany({ where: { ticketId: id } });
+        const ticket = await tx.ticket.delete({
+          where: { id },
+          include: {
+            requester: true,
+            assignedTo: true,
+            category: true,
+            attachments: true,
+          },
+        });
+        return ticket;
+      });
     } catch (e: any) {
       if (
         e instanceof Prisma.PrismaClientKnownRequestError &&
@@ -178,6 +191,33 @@ export class TicketsService {
       }
       throw e;
     }
+  }
+
+  async removeMessage(ticketId: string, messageId: string) {
+    const message = await this.prisma.ticketMessage.findUnique({
+      where: { id: messageId },
+      include: { attachments: true, ticket: true },
+    });
+
+    if (!message || message.ticketId !== ticketId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    await this.prisma.ticketAttachment.deleteMany({
+      where: { messageId },
+    });
+
+    const deleted = await this.prisma.ticketMessage.delete({
+      where: { id: messageId },
+      include: {
+        author: {
+          select: { id: true, name: true, email: true, role: true },
+        },
+        attachments: true,
+      },
+    });
+
+    return deleted;
   }
 
   async addMessage(

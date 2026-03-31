@@ -25,6 +25,7 @@ import { extname } from 'path';
 import { AssignTicketDto } from './dto/assign-ticket.dto';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { TicketQueryDto } from './dto/ticket-query.dto';
+import { AdminGuard } from '../auth/guards/admin.guard';
 
 @ApiTags('tickets')
 @ApiBearerAuth()
@@ -122,7 +123,17 @@ export class TicketsController {
     return this.ticketsService.deleteAll();
   }
 
+  @Delete(':ticketId/messages/:messageId')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  removeMessage(
+    @Param('ticketId') ticketId: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.ticketsService.removeMessage(ticketId, messageId);
+  }
+
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   remove(@Param('id') id: string) {
     return this.ticketsService.remove(id);
   }
