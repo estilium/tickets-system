@@ -1,0 +1,16 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="split" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="50%" stop-color="#ffffff"/>
+      <stop offset="50%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" fill="url(#split)" rx="24" />
+  <text x="64" y="92" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="96" font-weight="700" fill="#000">
+    M
+  </text>
+  <text x="100" y="112" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="600" fill="#fff" transform="rotate(90 100 102)">
+    Autotech
+  </text>
+</svg>
