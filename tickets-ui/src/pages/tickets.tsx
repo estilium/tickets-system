@@ -231,21 +231,21 @@ useEffect(() => {
 
             <input
               type="text"
-              placeholder="Título"
+              placeholder="Título / 제목"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full border p-2 mb-2 rounded"
             />
 
             <textarea
-              placeholder="Descripción"
+              placeholder="Descripción / 설명"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full border p-2 mb-4 rounded min-h-[170px]"
             />
 
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Imagen inicial (opcional)
+              Imagen inicial (opcional) / 시작 이미지 (선택 사항)
             </label>
             <div className="flex flex-col gap-2 mb-3">
               <input
@@ -259,7 +259,7 @@ useEffect(() => {
                 htmlFor="ticket-image-upload"
                 className="inline-flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700"
               >
-                Seleccionar imagen
+                Seleccionar imagen / 이미지 선택
               </label>
               {attachment && (
                 <div className="text-sm text-gray-600">
@@ -274,14 +274,14 @@ useEffect(() => {
               className="w-full border p-2 mb-2 rounded"
               required
             >
-              <option value="">Selecciona ubicación *</option>
-              <option value="Oficina General">Oficina General</option>
-              <option value="Pintura">Pintura</option>
-              <option value="Inyección">Inyección</option>
-              <option value="Embarques">Embarques</option>
-              <option value="almacen">Almacén</option>
-              <option value="moldes">Moldes</option>
-              <option value="HR">HR</option>
+              <option value="">Selecciona ubicación / 위치 *</option>
+              <option value="Oficina General">Oficina General / 총무실 </option>
+              <option value="Pintura">Pintura / 그림 </option>
+              <option value="Inyección">Inyección / 주사</option>
+              <option value="Embarques">Embarques / 선적</option>
+              <option value="almacen">Almacén/ 창고</option>
+              <option value="moldes">Moldes / 금형</option>
+              <option value="HR">HR / 인적 자원</option>
               <option value="Enfermería">Enfermería</option>
             </select>
 
@@ -291,7 +291,7 @@ useEffect(() => {
                 className="w-full border p-2 mb-2 rounded"
                 required
               >
-                <option value="">Selecciona categoría *</option>
+                <option value="">Selecciona categoría / 카테고리 *</option>
 
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>

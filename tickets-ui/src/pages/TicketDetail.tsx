@@ -227,7 +227,7 @@ if (fileRef.current) {
     onClick={() => navigate("/tickets")}
     className="text-blue-600 hover:underline"
   >
-    ← Back
+    ← Regresar
   </button>
 
   <div>
@@ -304,7 +304,7 @@ if (fileRef.current) {
       {/* TITLE */}
       <div className="flex items-center gap-3 mb-4">
 
-        <h1 className="text-2xl font-bold">
+        <h1 className="text-4xl font-bold">
           {ticket.title}
         </h1>
 
@@ -315,14 +315,14 @@ if (fileRef.current) {
       </div>
 
       {/* DESCRIPTION */}
-      <p className="mb-6 text-gray-600">
+      <p className="mb-10 text-gray-600 whitespace-pre-wrap text-lg leading-relaxed">
         {ticket.description}
       </p>
 
       {/* SHOW INITIAL ATTACHMENT IMAGE */}
       {primaryAttachment && (
         <div className="mb-6">
-          <h3 className="text-sm text-gray-500 mb-2">
+          <h3 className="text-md  text-gray-500 mb-2">
             <b>Imagen inicial del ticket:</b>
           </h3>
           <div className="flex gap-2 flex-wrap">
