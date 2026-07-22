@@ -27,6 +27,7 @@ type User = {
   name: string;
   email: string;
   role: string;
+  assignedArea?: string | null;
   active: boolean;
 };
 
@@ -42,6 +43,7 @@ const defaultForm = {
   email: "",
   password: "",
   role: "REQUESTER",
+  assignedArea: "",
   active: true,
 };
 
@@ -61,7 +63,9 @@ export default function Users() {
   const currentRole = getCurrentUserRole();
   const isAgent = currentRole === "AGENT";
   const isAdmin = currentRole === "ADMIN";
-  const roleOptions = isAgent ? ["REQUESTER", "AGENT"] : ["REQUESTER", "AGENT", "ADMIN"];
+  const roleOptions = isAgent
+    ? ["REQUESTER", "AGENT"]
+    : ["REQUESTER", "AGENT", "CHECKLIST_MANAGER", "ADMIN"];
 
   useEffect(() => {
     loadUsers();
@@ -127,6 +131,7 @@ export default function Users() {
       email: user.email,
       password: "",
       role: user.role,
+      assignedArea: user.assignedArea || "",
       active: user.active,
     });
     setError("");
@@ -169,6 +174,7 @@ export default function Users() {
           name: form.name,
           email: form.email,
           role: form.role,
+          assignedArea: form.assignedArea,
           active: form.active,
           ...(form.password ? { password: form.password } : {}),
         });
@@ -178,6 +184,7 @@ export default function Users() {
           name: form.name,
           email: form.email,
           role: form.role,
+          assignedArea: form.assignedArea,
           password: form.password,
         });
       }
@@ -209,6 +216,10 @@ export default function Users() {
 
   const goToAdminActions = () => {
     navigate("/admin/actions");
+  };
+
+  const goToChecklistAdmin = () => {
+    navigate("/admin/checklist");
   };
 
   const handleSaveCategory = async () => {
@@ -273,6 +284,7 @@ export default function Users() {
               <th className="px-4 py-3 text-sm font-medium text-gray-600">Usuario</th>
               <th className="px-4 py-3 text-sm font-medium text-gray-600">Email</th>
               <th className="px-4 py-3 text-sm font-medium text-gray-600">Rol</th>
+              <th className="px-4 py-3 text-sm font-medium text-gray-600">Área</th>
               <th className="px-4 py-3 text-sm font-medium text-gray-600">Activo</th>
               <th className="px-4 py-3 text-sm font-medium text-gray-600">Acciones</th>
             </tr>
@@ -280,11 +292,11 @@ export default function Users() {
           <tbody>
             {loading ? (
               <tr>
-                <td className="px-4 py-4" colSpan={5}>Cargando...</td>
+                <td className="px-4 py-4" colSpan={7}>Cargando...</td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td className="px-4 py-4" colSpan={5}>No hay usuarios registrados.</td>
+                <td className="px-4 py-4" colSpan={7}>No hay usuarios registrados.</td>
               </tr>
             ) : (
               users.map((user) => {
@@ -297,6 +309,7 @@ export default function Users() {
                     <td className="px-4 py-3">{user.username}</td>
                     <td className="px-4 py-3">{user.email}</td>
                     <td className="px-4 py-3">{user.role}</td>
+                    <td className="px-4 py-3">{user.assignedArea || '-'}</td>
                     <td className="px-4 py-3">{user.active ? 'Sí' : 'No'}</td>
                     <td className="px-4 py-3 space-x-2">
                       <button
@@ -325,22 +338,61 @@ export default function Users() {
       </div>
 
       <div className="mt-8 bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-xl font-semibold">Categorías</h3>
+            <p className="text-sm text-gray-500">Administra las categorías de tickets.</p>
+          </div>
+          <button
+            onClick={openNewCategory}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            + Agregar categoría
+          </button>
+        </div>
+
+        {categories.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-300 p-6 text-sm text-gray-500 text-center">
+            No hay categorías registradas.
+          </div>
+        ) : (
+          <DndContext onDragEnd={handleCategoryDragEnd}>
+            <SortableContext
+              items={categories.map((category) => category.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {categories.map((category) => (
+                  <SortableCategoryItem
+                    key={category.id}
+                    category={category}
+                    onEdit={() => openEditCategory(category)}
+                    onDelete={() => handleDeleteCategory(category)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </div>
+
+      <div className="mt-8 bg-white rounded-lg shadow p-6">
         <h3 className="text-xl font-semibold mb-3">Acciones de Administrador</h3>
         <p className="text-sm text-gray-600 mb-4">
           Accede a la página de administración para realizar acciones globales del sistema.
         </p>
         <div className="flex flex-wrap gap-2">
           <button
+            onClick={goToChecklistAdmin}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Administrar checklist
+          </button>
+          <button
             onClick={goToAdminActions}
             className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
           >
             Ir a Admin Actions
-          </button>
-          <button
-            onClick={openNewCategory}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Administrar categorías
           </button>
         </div>
       </div>
@@ -396,6 +448,14 @@ export default function Users() {
                     </option>
                   ))}
                 </select>
+                <input
+                  value={form.assignedArea}
+                  onChange={(e) => handleChange('assignedArea', e.target.value)}
+                  placeholder="Área asignada"
+                  className="w-full border p-2 rounded"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -404,14 +464,14 @@ export default function Users() {
                   />
                   Activo
                 </label>
+                <input
+                  value={form.password}
+                  onChange={(e) => handleChange('password', e.target.value)}
+                  placeholder={editingUser ? 'Nueva contraseña (opcional)' : 'Contraseña'}
+                  type="password"
+                  className="w-full border p-2 rounded"
+                />
               </div>
-              <input
-                value={form.password}
-                onChange={(e) => handleChange('password', e.target.value)}
-                placeholder={editingUser ? 'Nueva contraseña (opcional)' : 'Contraseña'}
-                type="password"
-                className="w-full border p-2 rounded"
-              />
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
@@ -434,15 +494,20 @@ export default function Users() {
 
       {showCategoryModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50 px-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-xl font-semibold">
-                  {categoryToEdit ? 'Editar categoría' : 'Administrar categorías'}
+                  {categoryToEdit ? 'Editar categoría' : 'Agregar categoría'}
                 </h3>
               </div>
               <button
-                onClick={() => setShowCategoryModal(false)}
+                onClick={() => {
+                  setShowCategoryModal(false);
+                  setCategoryToEdit(null);
+                  setCategoryName("");
+                  setCategoryError("");
+                }}
                 className="text-gray-500 hover:text-gray-700"
               >
                 ×
@@ -453,33 +518,6 @@ export default function Users() {
               <div className="mb-4 text-sm text-red-600">{categoryError}</div>
             )}
 
-            <div className="mb-4">
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">Categorías existentes</h4>
-              {categories.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500">
-                  No hay categorías registradas.
-                </div>
-              ) : (
-                <DndContext onDragEnd={handleCategoryDragEnd}>
-                  <SortableContext
-                    items={categories.map((category) => category.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {categories.map((category) => (
-                        <SortableCategoryItem
-                          key={category.id}
-                          category={category}
-                          onEdit={() => openEditCategory(category)}
-                          onDelete={() => handleDeleteCategory(category)}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              )}
-            </div>
-
             <div className="grid grid-cols-1 gap-4">
               <input
                 value={categoryName}
@@ -489,11 +527,13 @@ export default function Users() {
               />
             </div>
 
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
+            <div className="mt-6 flex justify-end gap-3">
               <button
                 onClick={() => {
                   setShowCategoryModal(false);
                   setCategoryToEdit(null);
+                  setCategoryName("");
+                  setCategoryError("");
                 }}
                 className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
               >
