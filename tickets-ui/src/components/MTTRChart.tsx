@@ -6,6 +6,7 @@ import {
   PointElement,
   Tooltip,
   Legend,
+  Filler,
 } from "chart.js";
 
 import { Line } from "react-chartjs-2";
@@ -17,7 +18,8 @@ ChartJS.register(
   LinearScale,
   PointElement,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 export default function MTTRChart({ data }: { data: MTTR[] }) {

@@ -26,6 +26,8 @@ import { AssignTicketDto } from './dto/assign-ticket.dto';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { TicketQueryDto } from './dto/ticket-query.dto';
 import { AdminGuard } from '../auth/guards/admin.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UploadedFile } from '@nestjs/common';
 
 @ApiTags('tickets')
 @ApiBearerAuth()
@@ -52,8 +54,15 @@ export class TicketsController {
     @Req() req: any,
     @UploadedFiles() files: Express.Multer.File[],
   ) {
+    // Sólo ADMIN puede crear tickets con fechas históricas
+    if ((createTicketDto as any).createdAt || (createTicketDto as any).closedAt) {
+      if (req.user.role !== 'ADMIN') {
+        throw new ForbiddenException('No tienes permisos para crear tickets con fechas históricas');
+      }
+    }
+
     return this.ticketsService.createWithAttachments(
-      { ...createTicketDto, requesterId: req.user.id },
+      { ...createTicketDto, requesterId: req.user.id } as any,
       files || [],
     );
   }
@@ -156,5 +165,16 @@ export class TicketsController {
     @Req() req: any,
   ) {
     return this.ticketsService.assignTicket(id, req.user, dto.assignedToId);
+  }
+
+  @Post('import')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  async importCsv(@UploadedFile() file: Express.Multer.File, @Req() req: any) {
+    if (req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('No tienes permisos para esta acción');
+    }
+
+    return this.ticketsService.importFromCsv(file, req.user);
   }
 }

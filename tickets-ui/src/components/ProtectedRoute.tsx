@@ -30,5 +30,22 @@ export default function ProtectedRoute({ children }: any) {
     }
   }
 
+  if (role === "CHECKLIST_MANAGER") {
+    const allowed =
+      location.pathname === "/" || location.pathname === "/checklist";
+    if (!allowed) {
+      return <Navigate to="/checklist" replace />;
+    }
+  }
+
+  if (role === "AGENT") {
+    const isAdminRoute =
+      location.pathname.startsWith("/users") ||
+      location.pathname.startsWith("/admin");
+    if (isAdminRoute) {
+      return <Navigate to="/" replace />;
+    }
+  }
+
   return children;
 }

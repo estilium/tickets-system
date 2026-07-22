@@ -1,32 +1,56 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { api } from "../api/api"
 
-
 export default function NewTicket() {
-
   const Navigate = useNavigate()
 
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
+  const [ticketLocation, setTicketLocation] = useState("")
+  const [categoryId, setCategoryId] = useState("")
+  const [categories, setCategories] = useState<any[]>([])
+  const [createdAt, setCreatedAt] = useState<string | null>(null)
+  const [closedAt, setClosedAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const navigate = useNavigate () ;
+  const navigate = useNavigate()
 
-  async function createTicket(e:any) {
+  const rawUser = localStorage.getItem('user')
+  const currentUser = rawUser ? JSON.parse(rawUser) : null
+
+  useEffect(() => {
+    api.get('/categories').then((res) => {
+      setCategories(res.data?.data ?? res.data ?? [])
+    })
+  }, [])
+
+  async function createTicket(e: any) {
     e.preventDefault()
+
+    if (!title || !description || !ticketLocation || !categoryId) {
+      alert('Please complete all required fields')
+      return
+    }
 
     setLoading(true)
 
     try {
-
-      await api.post("/tickets", {
+      const payload: any = {
         title,
-        description
-      })
+        description,
+        ticketLocation,
+        categoryId,
+      }
+
+      if (currentUser?.role === 'ADMIN') {
+        if (createdAt) payload.createdAt = new Date(createdAt).toISOString()
+        if (closedAt) payload.closedAt = new Date(closedAt).toISOString()
+      }
+
+      await api.post("/tickets", payload)
 
       Navigate("/tickets")
-
-    } catch(err) {
+    } catch (err) {
       console.error(err)
       alert("Error creating ticket")
     }
@@ -53,20 +77,68 @@ export default function NewTicket() {
         <input
           placeholder="Title"
           value={title}
-          onChange={(e)=>setTitle(e.target.value)}
+          onChange={(e) => setTitle(e.target.value)}
           className="border rounded p-2 w-full"
         />
 
         <textarea
           placeholder="Description"
           value={description}
-          onChange={(e)=>setDescription(e.target.value)}
+          onChange={(e) => setDescription(e.target.value)}
           className="border rounded p-2 w-full h-32"
         />
 
-        <button
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+        <select
+          value={ticketLocation}
+          onChange={(e) => setTicketLocation(e.target.value)}
+          className="border rounded p-2 w-full"
         >
+          <option value="">Select location</option>
+          <option value="Oficina General">Oficina General</option>
+          <option value="Pintura">Pintura</option>
+          <option value="Inyección">Inyección</option>
+          <option value="Embarques">Embarques</option>
+          <option value="almacen">Almacén</option>
+          <option value="moldes">Moldes</option>
+          <option value="HR">HR</option>
+          <option value="Enfermería">Enfermería</option>
+        </select>
+
+        <select
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+          className="border rounded p-2 w-full"
+        >
+          <option value="">Select category</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+
+        {currentUser?.role === 'ADMIN' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium">Created at (history)</label>
+              <input
+                type="datetime-local"
+                className="border rounded p-2 w-full"
+                onChange={(e) => setCreatedAt(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Closed at (history)</label>
+              <input
+                type="datetime-local"
+                className="border rounded p-2 w-full"
+                onChange={(e) => setClosedAt(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+
+        <button className="bg-blue-600 text-white px-4 py-2 rounded">
           {loading ? "Creating..." : "Create Ticket"}
         </button>
 

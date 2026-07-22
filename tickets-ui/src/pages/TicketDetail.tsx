@@ -162,7 +162,7 @@ if (fileRef.current) {
 
     try {
       await api.delete(`/tickets/${ticket.id}/messages/${messageToDelete}`);
-      setTicket((prev) =>
+      setTicket((prev: any) =>
         prev
           ? {
               ...prev,

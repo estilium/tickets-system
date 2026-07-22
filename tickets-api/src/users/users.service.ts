@@ -18,6 +18,7 @@ export class UsersService {
         username: true,
         name: true,
         email: true,
+        assignedArea: true,
       },
     });
   }
@@ -30,6 +31,7 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        assignedArea: true,
         active: true,
         createdAt: true,
         updatedAt: true,
@@ -45,8 +47,7 @@ export class UsersService {
         username: true,
         name: true,
         email: true,
-        role: true,
-        active: true,
+        role: true,        assignedArea: true,        active: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -91,6 +92,7 @@ export class UsersService {
         email: dto.email,
         password: hashedPassword,
         role: dto.role,
+        assignedArea: dto.assignedArea?.trim() || null,
         active: true,
       },
       select: {
@@ -98,6 +100,7 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        assignedArea: true,
         active: true,
         createdAt: true,
         updatedAt: true,
@@ -138,6 +141,9 @@ export class UsersService {
       email: dto.email,
       role: dto.role,
       active: dto.active,
+      ...(dto.assignedArea !== undefined
+        ? { assignedArea: dto.assignedArea?.trim() || null }
+        : {}),
     };
 
     if (dto.password) {

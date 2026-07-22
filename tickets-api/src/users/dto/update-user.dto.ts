@@ -26,5 +26,10 @@ export class UpdateUserDto {
   role?: Role;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  assignedArea?: string;
+
+  @IsOptional()
   active?: boolean;
 }

@@ -16,25 +16,28 @@ datasource db {
 enum Role {
   REQUESTER
   AGENT
+  CHECKLIST_MANAGER
   ADMIN
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  username  String?   @unique
-  name      String
-  password  String
-  role      Role     @default(REQUESTER)
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  email        String   @unique
+  username     String?  @unique
+  name         String
+  password     String
+  role         Role     @default(REQUESTER)
+  assignedArea String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   assignedTickets Ticket[] @relation("TicketAssignedTo")
 
 
 
   ticketsRequested Ticket[]
   messages         TicketMessage[]
+  checklistRuns    ChecklistRun[]
 }
 
 model Ticket {
@@ -126,4 +129,94 @@ model TicketAttachment {
   createdAt DateTime @default(now())
 
   @@index([messageId])
+}
+
+model MonthlyMttrRecord {
+  id              String   @id @default(uuid())
+  year            Int
+  month           Int
+  totalClosed     Int
+  mttrMinutesAvg  Float
+  mttrMinutesMin  Float
+  mttrMinutesMax  Float
+  from            DateTime
+  to              DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([year, month], name: "year_month")
+}
+
+enum ChecklistShift {
+  SHIFT_1
+  SHIFT_2
+}
+
+enum ChecklistItemStatus {
+  OK
+  NG
+}
+
+model ChecklistMachine {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  area        String?
+  category    String?
+  active      Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items ChecklistItem[]
+  runs  ChecklistRun[]
+}
+
+model ChecklistItem {
+  id          String   @id @default(uuid())
+  machineId   String
+  machine     ChecklistMachine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  label       String
+  description String?
+  order       Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  responses ChecklistResponse[]
+
+  @@index([machineId])
+}
+
+model ChecklistRun {
+  id          String         @id @default(uuid())
+  machineId   String
+  machine     ChecklistMachine @relation(fields: [machineId], references: [id])
+  agentId     String
+  agent       User           @relation(fields: [agentId], references: [id])
+  date        DateTime
+  shift       ChecklistShift
+  status      String         @default("COMPLETED")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  responses ChecklistResponse[]
+
+  @@unique([machineId, date, shift])
+  @@index([date])
+  @@index([agentId])
+}
+
+model ChecklistResponse {
+  id          String              @id @default(uuid())
+  runId       String
+  run         ChecklistRun         @relation(fields: [runId], references: [id], onDelete: Cascade)
+  itemId      String
+  item        ChecklistItem        @relation(fields: [itemId], references: [id])
+  status      ChecklistItemStatus
+  observation String?
+  createdAt   DateTime            @default(now())
+
+  @@unique([runId, itemId])
+  @@index([itemId])
 }

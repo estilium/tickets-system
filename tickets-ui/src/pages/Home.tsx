@@ -25,5 +25,16 @@ export default function Home() {
     );
   }
 
+  if (role === "CHECKLIST_MANAGER") {
+    return (
+      <div className="p-4">
+        <h1 className="text-4xl font-bold mb-4">Checklist asignado</h1>
+        <div className="bg-white rounded-lg shadow p-6">
+          <p className="text-gray-600">Usa el checklist para tu área desde el menú izquierdo.</p>
+        </div>
+      </div>
+    );
+  }
+
   return <Dashboard />;
 }

@@ -1,7 +1,12 @@
 import axios from "axios";
 
+const defaultApiUrl =
+  typeof window === "undefined"
+    ? "http://localhost:3000/api"
+    : `${window.location.protocol}//${window.location.hostname}:3000/api`;
+
 export const api = axios.create({
-  baseURL: "http://172.22.141.70:3000/api",
+  baseURL: import.meta.env.VITE_API_URL || defaultApiUrl,
 });
 
 // Request interceptor to add JWT token

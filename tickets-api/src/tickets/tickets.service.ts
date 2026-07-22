@@ -9,6 +9,7 @@ import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { Prisma } from '@prisma/client';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { parse } from 'csv-parse/sync';
 
 @Injectable()
 export class TicketsService {
@@ -67,6 +68,86 @@ export class TicketsService {
     };
   }
 
+  async importFromCsv(file: Express.Multer.File, user: any) {
+    if (!file || !file.buffer) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    const text = file.buffer.toString('utf8');
+    let records: any[];
+    try {
+      records = parse(text, { columns: true, skip_empty_lines: true });
+    } catch (e: any) {
+      throw new BadRequestException('Invalid CSV format: ' + (e.message ?? e));
+    }
+
+    const results: { created: any[]; errors: any[] } = { created: [], errors: [] };
+
+    await this.prisma.$transaction(async (tx) => {
+      for (let i = 0; i < records.length; i++) {
+        const row = records[i];
+        const rowNum = i + 1;
+        try {
+          // Resolve requester (email required)
+          const requesterEmail = row.requesterEmail || row.requester_email || row.requester;
+          if (!requesterEmail) {
+            results.errors.push({ row: rowNum, error: 'requesterEmail missing' });
+            continue;
+          }
+          const requester = await tx.user.findUnique({ where: { email: requesterEmail } });
+          if (!requester) {
+            results.errors.push({ row: rowNum, error: `requester not found (${requesterEmail})` });
+            continue;
+          }
+
+          // Optional assigned user
+          let assignedToId: string | undefined = undefined;
+          const assignedEmail = row.assignedToEmail || row.assigned_to_email || row.assigned_to;
+          if (assignedEmail) {
+            const assigned = await tx.user.findUnique({ where: { email: assignedEmail } });
+            if (!assigned) {
+              results.errors.push({ row: rowNum, error: `assigned user not found (${assignedEmail})` });
+              continue;
+            }
+            assignedToId = assigned.id;
+          }
+
+          // Optional category
+          let categoryId: string | undefined = undefined;
+          const categoryName = row.category || row.categoryName || row.category_name;
+          if (categoryName) {
+            const category = await tx.category.findFirst({ where: { name: categoryName } });
+            if (category) categoryId = category.id;
+          }
+
+          const data: any = {
+            title: row.title ?? '(no title)',
+            description: row.description ?? '',
+            requesterId: requester.id,
+            ticketLocation: row.ticketLocation || row.ticket_location || null,
+            categoryId: categoryId ?? null,
+            assignedToId: assignedToId ?? null,
+          };
+
+          if (row.priority) data.priority = (row.priority as string).toUpperCase();
+          if (row.status) data.status = (row.status as string).toUpperCase();
+          if (row.createdAt) data.createdAt = new Date(row.createdAt);
+          if (row.closedAt) {
+            data.closedAt = new Date(row.closedAt);
+            data.status = 'CLOSED';
+          }
+
+          const ticket = await tx.ticket.create({ data } as any);
+          results.created.push({ row: rowNum, id: ticket.id });
+        } catch (e: any) {
+          results.errors.push({ row: rowNum, error: e.message ?? e });
+        }
+      }
+    });
+
+    return { summary: { total: records.length, created: results.created.length, failed: results.errors.length }, details: results };
+  }
+
   findOne(id: string) {
     return this.prisma.ticket.findUnique({
       where: { id },
@@ -93,15 +174,24 @@ export class TicketsService {
   }
 
   create(dto: CreateTicketDto & { requesterId: string }) {
-    return this.prisma.ticket.create({
-      data: {
-        title: dto.title,
-        description: dto.description,
-        requesterId: dto.requesterId,
-        ticketLocation: dto.ticketLocation,
-        categoryId: dto.categoryId,
-      },
-    });
+    const data: any = {
+      title: dto.title,
+      description: dto.description,
+      requesterId: dto.requesterId,
+      ticketLocation: dto.ticketLocation,
+      categoryId: dto.categoryId,
+    };
+
+    if ((dto as any).createdAt) {
+      data.createdAt = new Date((dto as any).createdAt);
+    }
+
+    if ((dto as any).closedAt) {
+      data.closedAt = new Date((dto as any).closedAt);
+      data.status = 'CLOSED';
+    }
+
+    return this.prisma.ticket.create({ data });
   }
 
   async createWithAttachments(
@@ -109,15 +199,21 @@ export class TicketsService {
     files: Express.Multer.File[],
   ) {
     return this.prisma.$transaction(async (tx) => {
-      const ticket = await tx.ticket.create({
-        data: {
-          title: dto.title,
-          description: dto.description,
-          requesterId: dto.requesterId,
-          ticketLocation: dto.ticketLocation,
-          categoryId: dto.categoryId,
-        } as any,
-      });
+      const data: any = {
+        title: dto.title,
+        description: dto.description,
+        requesterId: dto.requesterId,
+        ticketLocation: dto.ticketLocation,
+        categoryId: dto.categoryId,
+      };
+
+      if ((dto as any).createdAt) data.createdAt = new Date((dto as any).createdAt);
+      if ((dto as any).closedAt) {
+        data.closedAt = new Date((dto as any).closedAt);
+        data.status = 'CLOSED';
+      }
+
+      const ticket = await tx.ticket.create({ data } as any);
 
       if (files.length > 0) {
         await tx.ticketAttachment.createMany({

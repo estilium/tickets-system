@@ -56,10 +56,9 @@ export class MetricsService {
     };
   }
 
-  async mttrCalendar(year: number, month: number) {
-    // month: 1-12
+  private async computeMttrForMonth(year: number, month: number) {
     const from = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
-    const to = new Date(Date.UTC(year, month, 1, 0, 0, 0)); // primer día del siguiente mes
+    const to = new Date(Date.UTC(year, month, 1, 0, 0, 0));
 
     const tickets = await this.prisma.ticket.findMany({
       where: {
@@ -108,6 +107,48 @@ export class MetricsService {
       mttrMinutesMin: Number(min.toFixed(2)),
       mttrMinutesMax: Number(max.toFixed(2)),
     };
+  }
+
+  async mttrCalendar(year: number, month: number) {
+    return this.computeMttrForMonth(year, month);
+  }
+
+  async createOrUpdateMttrReport(year: number, month: number) {
+    const report = await this.computeMttrForMonth(year, month);
+
+    return this.prisma.monthlyMttrRecord.upsert({
+      where: { year_month: { year, month } },
+      update: {
+        totalClosed: report.totalClosed,
+        mttrMinutesAvg: report.mttrMinutesAvg,
+        mttrMinutesMin: report.mttrMinutesMin,
+        mttrMinutesMax: report.mttrMinutesMax,
+        from: report.from,
+        to: report.to,
+      },
+      create: {
+        year,
+        month,
+        totalClosed: report.totalClosed,
+        mttrMinutesAvg: report.mttrMinutesAvg,
+        mttrMinutesMin: report.mttrMinutesMin,
+        mttrMinutesMax: report.mttrMinutesMax,
+        from: report.from,
+        to: report.to,
+      },
+    });
+  }
+
+  async mttrReport(year: number, month: number) {
+    return this.prisma.monthlyMttrRecord.findUnique({
+      where: { year_month: { year, month } },
+    });
+  }
+
+  async mttrReports() {
+    return this.prisma.monthlyMttrRecord.findMany({
+      orderBy: [{ year: 'desc' }, { month: 'desc' }],
+    });
   }
 
   async dashboard() {

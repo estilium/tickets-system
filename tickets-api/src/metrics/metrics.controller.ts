@@ -1,7 +1,8 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Post, BadRequestException } from '@nestjs/common';
 import { MetricsService } from './metrics.service';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { AdminGuard } from '../auth/guards/admin.guard';
 
 @ApiTags('metrics')
 @ApiBearerAuth()
@@ -22,6 +23,37 @@ export class MetricsController {
 
     const nDays = days ? Number(days) : 30;
     return this.metricsService.mttr(nDays);
+  }
+
+  @Get('mttr-record')
+  getMttrRecord(
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+  ) {
+    if (!year || !month) {
+      throw new BadRequestException('year and month are required');
+    }
+    return this.metricsService.mttrReport(Number(year), Number(month));
+  }
+
+  @Get('mttr-records')
+  getMttrRecords() {
+    return this.metricsService.mttrReports();
+  }
+
+  @Post('mttr/backfill')
+  @UseGuards(AdminGuard)
+  backfillMttr(
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+  ) {
+    if (!year || !month) {
+      throw new BadRequestException('year and month are required');
+    }
+    return this.metricsService.createOrUpdateMttrReport(
+      Number(year),
+      Number(month),
+    );
   }
 
   @Get('dashboard')

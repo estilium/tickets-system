@@ -9,6 +9,10 @@ import Login from "./pages/login";
 import NewTicket from "./pages/NewTicket"
 import Kanban from "./pages/Kanban";
 import AdminActions from "./pages/AdminActions";
+import Checklist from "./pages/Checklist";
+import AdminChecklist from "./pages/AdminChecklist";
+import Metrics from "./pages/Metrics";
+import HistoricalBulkUpload from "./components/HistoricalBulkUpload";
 
 function App() {
   return (
@@ -29,8 +33,12 @@ function App() {
         <Route path="tickets" element={<Tickets />} />
         <Route path="tickets/new" element={<NewTicket />} />
         <Route path="tickets/:id" element={<TicketDetail />} />
+        <Route path="tickets/import" element={<HistoricalBulkUpload />} />
         <Route path="users" element={<Users />} />
         <Route path="kanban" element={<Kanban />} />
+        <Route path="metrics" element={<Metrics />} />
+        <Route path="checklist" element={<Checklist />} />
+        <Route path="admin/checklist" element={<AdminChecklist />} />
         <Route path="admin/actions" element={<AdminActions />} />
       </Route>
 
