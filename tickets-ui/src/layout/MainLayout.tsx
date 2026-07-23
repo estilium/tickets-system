@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+import AppWatermark from "../components/AppWatermark";
 
 export default function MainLayout() {
 
@@ -16,6 +17,8 @@ export default function MainLayout() {
         <main className="flex-1 overflow-auto p-6">
           <Outlet />
         </main>
+
+        <AppWatermark />
 
       </div>
 
