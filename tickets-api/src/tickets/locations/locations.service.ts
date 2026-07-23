@@ -47,4 +47,17 @@ export class LocationsService {
       throw new NotFoundException('Location not found');
     }
   }
+
+  async reorder(ids: string[]) {
+    await this.prisma.$transaction(
+      ids.map((id, index) =>
+        this.prisma.ticketLocation.update({
+          where: { id },
+          data: { order: index },
+        }),
+      ),
+    );
+
+    return this.findAll();
+  }
 }

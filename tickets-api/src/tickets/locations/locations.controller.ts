@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
@@ -23,6 +23,11 @@ export class LocationsController {
   @Put(':id')
   update(@Param('id') id: string, @Body() updateLocationDto: UpdateLocationDto) {
     return this.locationsService.update(id, updateLocationDto);
+  }
+
+  @Patch('order')
+  reorder(@Body() body: { ids: string[] }) {
+    return this.locationsService.reorder(body.ids);
   }
 
   @Delete(':id')

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Papa from "papaparse";
+import type { ParseResult } from "papaparse";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/api";
 
@@ -15,6 +16,8 @@ const TARGET_FIELDS = [
   'createdAt',
   'closedAt',
 ];
+
+type CsvRow = Record<string, unknown>;
 
 export default function HistoricalBulkUpload() {
   const navigate = useNavigate();
@@ -51,26 +54,26 @@ export default function HistoricalBulkUpload() {
     setResult(null);
     if (!f) return;
 
-    Papa.parse(f, {
+    Papa.parse<CsvRow>(f, {
       preview: 10,
       header: true,
       skipEmptyLines: true,
-      complete: (res) => {
+      complete: (res: ParseResult<CsvRow>) => {
         const headers = res.meta.fields ?? [];
         setPreviewHeaders(headers);
-        const rows: string[][] = (res.data as any[]).map((r) => headers.map((h) => String(r[h] ?? '')));
+        const rows: string[][] = res.data.map((r) => headers.map((h) => String(r[h] ?? '')));
         setPreviewRows(rows);
 
         // Auto map by exact match or common variants
         const newMap: Record<string, string | null> = {};
         TARGET_FIELDS.forEach((t) => {
           const candidates = [t, t.toLowerCase(), t.replace(/([A-Z])/g, '_$1').toLowerCase()];
-          const found = headers.find((h) => candidates.includes(h) || candidates.includes(h.toLowerCase()));
+          const found = headers.find((h: string) => candidates.includes(h) || candidates.includes(h.toLowerCase()));
           newMap[t] = found ?? null;
         });
         setMapping(newMap);
       },
-      error: (err) => {
+      error: (err: Error) => {
         alert('Error parsing CSV: ' + err.message);
       },
     });
@@ -88,12 +91,12 @@ export default function HistoricalBulkUpload() {
     setLoading(true);
     setResult(null);
     try {
-      const parsed = await new Promise<any>((resolve, reject) => {
-        Papa.parse(origFile as File, { header: true, skipEmptyLines: true, complete: resolve, error: reject });
+      const parsed = await new Promise<ParseResult<CsvRow>>((resolve, reject) => {
+        Papa.parse<CsvRow>(origFile as File, { header: true, skipEmptyLines: true, complete: resolve, error: reject });
       });
 
-      const rows: any[] = (parsed.data as any[]).map((r: any) => {
-        const out: Record<string, any> = {};
+      const rows: CsvRow[] = parsed.data.map((r) => {
+        const out: CsvRow = {};
         TARGET_FIELDS.forEach((t) => {
           const col = mapping[t];
           out[t] = col ? (r[col] ?? '') : '';

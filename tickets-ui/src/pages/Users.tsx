@@ -211,6 +211,29 @@ export default function Users() {
     }
   };
 
+  const handleLocationDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = locations.findIndex((location) => location.id === active.id);
+    const newIndex = locations.findIndex((location) => location.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const nextLocations = arrayMove(locations, oldIndex, newIndex);
+    setLocations(nextLocations);
+
+    try {
+      await api.patch("/locations/order", {
+        ids: nextLocations.map((location) => location.id),
+      });
+      await loadLocations();
+    } catch (err: unknown) {
+      console.error(err);
+      alert("No se pudo reordenar ubicaciones");
+      await loadLocations();
+    }
+  };
+
   const openNewUser = () => {
     setEditingUser(null);
     setForm({ ...defaultForm });
@@ -353,6 +376,10 @@ export default function Users() {
 
   const goToImport = () => {
     navigate("/tickets/import");
+  };
+
+  const goToHistoricalTicket = () => {
+    navigate("/tickets/new");
   };
 
   const handleSaveCategory = async () => {
@@ -737,21 +764,15 @@ export default function Users() {
             {locations.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">No hay ubicaciones registradas.</div>
             ) : (
-              <div className="space-y-2">
-                {locations.map((location) => (
-                  <div key={location.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <span className="text-sm font-medium text-slate-800">{location.name}</span>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => openEditLocation(location)} className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700 hover:bg-amber-100">
-                        Editar
-                      </button>
-                      <button type="button" onClick={() => handleDeleteLocation(location)} className="rounded-md border border-red-200 bg-red-50 px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100">
-                        Eliminar
-                      </button>
-                    </div>
+              <DndContext onDragEnd={handleLocationDragEnd}>
+                <SortableContext items={locations.map((location) => location.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-2">
+                    {locations.map((location) => (
+                      <SortableLocationItem key={location.id} location={location} onEdit={() => openEditLocation(location)} onDelete={() => handleDeleteLocation(location)} />
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
             )}
           </section>
         </div>
@@ -850,6 +871,10 @@ export default function Users() {
             <button type="button" onClick={goToKanban} className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-blue-200 hover:bg-blue-50">
               <div className="font-semibold text-slate-900">Kanban</div>
               <p className="mt-1 text-sm text-slate-500">Consulta y organiza tickets por flujo de trabajo.</p>
+            </button>
+            <button type="button" onClick={goToHistoricalTicket} className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-blue-200 hover:bg-blue-50">
+              <div className="font-semibold text-slate-900">Ticket histórico</div>
+              <p className="mt-1 text-sm text-slate-500">Crea tickets con fecha y hora históricas para registros administrativos.</p>
             </button>
             <button type="button" onClick={goToAdminActions} className="rounded-lg border border-red-200 bg-red-50 p-4 text-left transition hover:bg-red-100">
               <div className="font-semibold text-red-800">Admin actions</div>
@@ -1112,6 +1137,54 @@ function SortableCategoryItem({ category, onEdit, onDelete }: { category: Catego
           ⠿
         </button>
         <span className="text-sm font-medium text-slate-800">{category.name}</span>
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700 hover:bg-amber-100"
+        >
+          Editar
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="rounded-md border border-red-200 bg-red-50 px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100"
+        >
+          Eliminar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SortableLocationItem({ location, onEdit, onDelete }: { location: TicketLocation; onEdit: () => void; onDelete: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: location.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+    >
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab rounded-md px-2 py-1 text-slate-400 hover:bg-white hover:text-slate-600"
+        >
+          ⠿
+        </button>
+        <span className="text-sm font-medium text-slate-800">{location.name}</span>
       </div>
       <div className="flex gap-2">
         <button

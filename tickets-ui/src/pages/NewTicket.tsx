@@ -3,6 +3,46 @@ import { useNavigate } from "react-router-dom"
 import { api } from "../api/api"
 import { ticketLocations } from "../constants/ticketLocations"
 
+type DateTimeParts = {
+  year: string
+  month: string
+  day: string
+  hour: string
+  minute: string
+}
+
+const now = new Date()
+const defaultDateTimeParts: DateTimeParts = {
+  year: String(now.getFullYear()),
+  month: String(now.getMonth() + 1).padStart(2, "0"),
+  day: String(now.getDate()).padStart(2, "0"),
+  hour: String(now.getHours()).padStart(2, "0"),
+  minute: String(now.getMinutes()).padStart(2, "0"),
+}
+
+const years = Array.from({ length: 8 }, (_, index) => String(now.getFullYear() - index))
+const months = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"))
+const hours = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0"))
+const minutes = Array.from({ length: 60 }, (_, index) => String(index).padStart(2, "0"))
+
+function getDays(year: string, month: string) {
+  const numericYear = Number(year || now.getFullYear())
+  const numericMonth = Number(month || 1)
+  const daysInMonth = new Date(numericYear, numericMonth, 0).getDate()
+  return Array.from({ length: daysInMonth }, (_, index) => String(index + 1).padStart(2, "0"))
+}
+
+function toIsoDate(parts: DateTimeParts) {
+  if (!parts.year || !parts.month || !parts.day || !parts.hour || !parts.minute) return null
+  return new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:00`).toISOString()
+}
+
+function addMinutesToIsoDate(isoDate: string, minutesToAdd: number) {
+  const date = new Date(isoDate)
+  date.setMinutes(date.getMinutes() + minutesToAdd)
+  return date.toISOString()
+}
+
 export default function NewTicket() {
   const Navigate = useNavigate()
 
@@ -12,8 +52,8 @@ export default function NewTicket() {
   const [availableLocations, setAvailableLocations] = useState(ticketLocations)
   const [categoryId, setCategoryId] = useState("")
   const [categories, setCategories] = useState<any[]>([])
-  const [createdAt, setCreatedAt] = useState<string | null>(null)
-  const [closedAt, setClosedAt] = useState<string | null>(null)
+  const [createdAtParts, setCreatedAtParts] = useState<DateTimeParts>(defaultDateTimeParts)
+  const [closeMinutes, setCloseMinutes] = useState("")
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
@@ -59,8 +99,17 @@ export default function NewTicket() {
       }
 
       if (currentUser?.role === 'ADMIN') {
-        if (createdAt) payload.createdAt = new Date(createdAt).toISOString()
-        if (closedAt) payload.closedAt = new Date(closedAt).toISOString()
+        const createdAt = toIsoDate(createdAtParts)
+        if (createdAt) payload.createdAt = createdAt
+        if (createdAt && closeMinutes.trim()) {
+          const parsedCloseMinutes = Number(closeMinutes)
+          if (!Number.isFinite(parsedCloseMinutes) || parsedCloseMinutes < 0) {
+            alert("Ingresa un tiempo de cierre valido en minutos")
+            setLoading(false)
+            return
+          }
+          payload.closedAt = addMinutesToIsoDate(createdAt, parsedCloseMinutes)
+        }
       }
 
       await api.post("/tickets", payload)
@@ -132,21 +181,21 @@ export default function NewTicket() {
 
         {currentUser?.role === 'ADMIN' && (
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium">Created at (history)</label>
-              <input
-                type="datetime-local"
-                className="border rounded p-2 w-full"
-                onChange={(e) => setCreatedAt(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium">Closed at (history)</label>
-              <input
-                type="datetime-local"
-                className="border rounded p-2 w-full"
-                onChange={(e) => setClosedAt(e.target.value)}
-              />
+            <DateTimeSelect label="Fecha de creación histórica" value={createdAtParts} onChange={setCreatedAtParts} />
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <label className="text-sm font-semibold text-slate-800">Cierre</label>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={closeMinutes}
+                  onChange={(e) => setCloseMinutes(e.target.value)}
+                  placeholder="Ej. 5"
+                  className="w-full rounded border p-2 sm:max-w-40"
+                />
+                <span className="text-sm text-slate-600">minutos despues de la creacion</span>
+              </div>
             </div>
           </div>
         )}
@@ -157,6 +206,69 @@ export default function NewTicket() {
 
       </form>
 
+    </div>
+  )
+}
+
+function DateTimeSelect({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: DateTimeParts
+  onChange: (value: DateTimeParts) => void
+}) {
+  const dayOptions = getDays(value.year, value.month)
+
+  function update(field: keyof DateTimeParts, nextValue: string) {
+    const next = { ...value, [field]: nextValue }
+    if ((field === "year" || field === "month") && next.day) {
+      const validDays = getDays(next.year, next.month)
+      if (!validDays.includes(next.day)) {
+        next.day = validDays[validDays.length - 1]
+      }
+    }
+    onChange(next)
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <label className="text-sm font-semibold text-slate-800">{label}</label>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        <select value={value.year} onChange={(e) => update("year", e.target.value)} className="border rounded p-2 w-full">
+          {years.map((year) => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
+
+        <select value={value.month} onChange={(e) => update("month", e.target.value)} className="border rounded p-2 w-full">
+          {months.map((month) => (
+            <option key={month} value={month}>{month}</option>
+          ))}
+        </select>
+
+        <select value={value.day} onChange={(e) => update("day", e.target.value)} className="border rounded p-2 w-full">
+          {dayOptions.map((day) => (
+            <option key={day} value={day}>{day}</option>
+          ))}
+        </select>
+
+        <select value={value.hour} onChange={(e) => update("hour", e.target.value)} className="border rounded p-2 w-full">
+          {hours.map((hour) => (
+            <option key={hour} value={hour}>{hour}</option>
+          ))}
+        </select>
+
+        <select value={value.minute} onChange={(e) => update("minute", e.target.value)} className="border rounded p-2 w-full">
+          {minutes.map((minute) => (
+            <option key={minute} value={minute}>{minute}</option>
+          ))}
+        </select>
+      </div>
     </div>
   )
 }
