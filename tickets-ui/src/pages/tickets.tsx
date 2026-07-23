@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { api } from "../api/api";
 import { useSocketEvent } from "../hooks/useRealtime";
 import { ticketLocations } from "../constants/ticketLocations";
+import { useLanguage } from "../i18n";
+import { getCatalogName } from "../utils/catalogTranslations";
 
 const statusBorderColors: Record<string, string> = {
   OPEN: "border-blue-500",
@@ -27,6 +29,7 @@ const ticketCardClass = (status: string) =>
   }`;
 
 export default function Tickets() {
+  const { language, t } = useLanguage();
 
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,7 +100,7 @@ useEffect(() => {
     .then((res) => {
       const locations = (res.data?.data ?? res.data ?? []).map((location: any) => ({
         value: location.name,
-        label: location.name,
+        label: getCatalogName(location, language),
       }));
       if (locations.length > 0) {
         setAvailableLocations(locations);
@@ -106,11 +109,11 @@ useEffect(() => {
     .catch((err) => {
       console.error("Error cargando ubicaciones:", err);
     });
-}, []);
+}, [language]);
 
   async function handleCreate() {
     if (!title || !description || !ticketLocation || !categoryId) {
-      alert("Por favor completa todos los campos (Título, Descripción, Ubicación y Categoría)");
+      alert(t("tickets.validation.required"));
       return;
     }
 
@@ -138,7 +141,7 @@ useEffect(() => {
       loadTickets();
     } catch (err) {
       console.error(err);
-      alert("Error al crear el ticket");
+      alert(t("tickets.createError"));
     }
   }
 
@@ -173,7 +176,7 @@ useEffect(() => {
     new Set(tickets.map((t: any) => new Date(t.createdAt).getFullYear().toString()))
   ).sort().reverse();
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div>{t("common.loading")}</div>;
 
   return (
       <div className="space-y-4">
@@ -181,7 +184,7 @@ useEffect(() => {
 {/* HEADER */}
 <div className="flex justify-between items-center mb-4">
 
-  <h1 className="text-xl font-semibold">Tickets</h1>
+  <h1 className="text-xl font-semibold">{t("tickets.title")}</h1>
 
   {/* 🔥 BOTONES */}
   <div className="flex gap-2">
@@ -193,7 +196,7 @@ useEffect(() => {
       }}
       className="bg-blue-600 hover:bg-blue-900 text-white px-4 py-2 rounded"
     >
-      + New Ticket
+      {t("tickets.new")}
     </button>
 
     {!currentUser?.role || currentUser.role !== "REQUESTER" ? (
@@ -201,7 +204,7 @@ useEffect(() => {
         to="/kanban"
         className="bg-gray-700 hover:bg-gray-900 text-white px-4 py-2 rounded"
       >
-        Kanban
+        {t("tickets.kanban")}
       </Link>
     ) : null}
 
@@ -213,7 +216,7 @@ useEffect(() => {
         <div className="flex gap-2">
           <input
             type="text"
-            placeholder="Search tickets..."
+            placeholder={t("tickets.search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="border rounded p-2 flex-1"
@@ -227,7 +230,7 @@ useEffect(() => {
               }}
               className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
             >
-              Limpiar filtros
+              {t("tickets.clearFilters")}
             </button>
           )}
         </div>
@@ -241,7 +244,7 @@ useEffect(() => {
               }}
               className="border rounded p-2 text-sm"
             >
-              <option value="">Todos los años</option>
+              <option value="">{t("tickets.allYears")}</option>
               {availableYears.map((year) => (
                 <option key={year} value={year}>
                   {year}
@@ -257,7 +260,7 @@ useEffect(() => {
               className="border rounded p-2 text-sm"
               disabled={!filterYear}
             >
-              <option value="">Todos los meses</option>
+              <option value="">{t("tickets.allMonths")}</option>
               <option value="01">Enero</option>
               <option value="02">Febrero</option>
               <option value="03">Marzo</option>
@@ -279,7 +282,7 @@ useEffect(() => {
               checked={showClosed}
               onChange={() => setShowClosed((prev) => !prev)}
             />
-            Mostrar tickets cerrados
+            {t("tickets.showClosed")}
           </label>
         </div>
       </div>
@@ -310,26 +313,26 @@ useEffect(() => {
         </div>
       ) : (
         <>
-          {filteredTickets.map((t: any) => (
-        <Link key={t.id} to={`/tickets/${t.id}`} className={ticketCardClass(t.status)}>
+          {filteredTickets.map((ticket: any) => (
+        <Link key={ticket.id} to={`/tickets/${ticket.id}`} className={ticketCardClass(ticket.status)}>
         <div className="flex justify-between items-center">
-            <div className="font-semibold text-lg">{t.title}</div>
-            <StatusBadge status={t.status} />
+            <div className="font-semibold text-lg">{ticket.title}</div>
+            <StatusBadge status={ticket.status} />
        </div>
 
         <div className="text-gray-500 text-sm mt-1 line-clamp-2">
-  {t.description}
+  {ticket.description}
 </div>
 
             {/* 🔥 INFO DEL TICKET */}
             <div className="flex gap-4 mt-2 text-xs text-gray-500">
 
               <div>
-                📍 {t.ticketLocation ?? "Sin ubicación"}
+                📍 {ticket.ticketLocation ?? "Sin ubicación"}
               </div>
 
               <div>
-                🏷️ {t.category?.name ?? "Sin categoría"}
+                🏷️ {getCatalogName(ticket.category, language)}
               </div>
 
             </div>
@@ -337,19 +340,19 @@ useEffect(() => {
             {/* ID COMPLETO Y FECHA */}
             <div className="bg-gray-50 rounded p-2 mt-3 text-xs font-mono">
               <div className="text-gray-600">
-                🆔 {t.id}
+                🆔 {ticket.id}
               </div>
               <div className="text-gray-500 mt-1">
-                📅 Creado: {formatDate(t.createdAt)}
+                📅 {t("tickets.created")}: {formatDate(ticket.createdAt)}
               </div>
             </div>
 
         <div className="flex justify-between items-center mt-3 text-sm">
           <div className="text-gray-600">
-              👤 {t.assignedTo?.name ?? "Unassigned"}
+              👤 {ticket.assignedTo?.name ?? "Unassigned"}
           </div>
           <div className="text-gray-500 text-xs">
-            Creado por {t.requester?.name ?? t.requester?.email ?? "desconocido"}
+            Creado por {ticket.requester?.name ?? ticket.requester?.email ?? "desconocido"}
           </div>
         </div>
         </Link>
@@ -369,25 +372,25 @@ useEffect(() => {
   `}
 >
 
-            <h2 className="text-xl font-bold mb-4">Nuevo Ticket</h2>
+            <h2 className="text-xl font-bold mb-4">{t("tickets.modal.title")}</h2>
 
             <input
               type="text"
-              placeholder="Título / 제목"
+              placeholder={t("tickets.modal.ticketTitle")}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full border p-2 mb-2 rounded"
             />
 
             <textarea
-              placeholder="Descripción / 설명"
+              placeholder={t("tickets.modal.description")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full border p-2 mb-4 rounded min-h-[170px]"
             />
 
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Imagen inicial (opcional) / 시작 이미지 (선택 사항)
+              {t("tickets.modal.image")}
             </label>
             <div className="flex flex-col gap-2 mb-3">
               <input
@@ -401,7 +404,7 @@ useEffect(() => {
                 htmlFor="ticket-image-upload"
                 className="inline-flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700"
               >
-                Seleccionar imagen / 이미지 선택
+                {t("tickets.modal.selectImage")}
               </label>
               {attachment && (
                 <div className="text-sm text-gray-600">
@@ -416,7 +419,7 @@ useEffect(() => {
               className="w-full border p-2 mb-2 rounded"
               required
             >
-              <option value="">Selecciona ubicación / 위치 *</option>
+              <option value="">{t("tickets.modal.location")} *</option>
               {availableLocations.map((location) => (
                 <option key={location.value} value={location.value}>
                   {location.label}
@@ -430,11 +433,11 @@ useEffect(() => {
                 className="w-full border p-2 mb-2 rounded"
                 required
               >
-                <option value="">Selecciona categoría / 카테고리 *</option>
+                <option value="">{t("tickets.modal.category")} *</option>
 
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name}
+                    {getCatalogName(c, language)}
                   </option>
                 ))}
               </select>
@@ -445,7 +448,7 @@ useEffect(() => {
                 onClick={handleCloseModal}
                 className="px-4 py-2 bg-gray-300 rounded"
               >
-                Cancelar
+                {t("common.cancel")}
               </button>
 
               <button
@@ -453,7 +456,7 @@ useEffect(() => {
                 disabled={!title || !description || !ticketLocation || !categoryId}
                 className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
               >
-                Crear
+                {t("tickets.modal.create")}
               </button>
 
             </div>

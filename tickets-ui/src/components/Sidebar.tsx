@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { useLanguage } from "../i18n";
 
 function getUserRole() {
   const rawUser = localStorage.getItem("user");
@@ -25,21 +26,22 @@ type IconName =
 
 type NavItem = {
   to: string;
-  label: string;
+  labelKey: "sidebar.dashboard" | "sidebar.home" | "sidebar.tickets" | "sidebar.checklist" | "sidebar.panel";
   icon: IconName;
   roles?: string[];
   hiddenFor?: string[];
 };
 
 const navItems = [
-  { to: "/", label: "Dashboard", icon: "chart-pie", roles: ["AGENT", "ADMIN"] },
-  { to: "/", label: "Inicio", icon: "chart-pie", roles: ["REQUESTER", "CHECKLIST_MANAGER"] },
-  { to: "/tickets", label: "Tickets", icon: "flag", hiddenFor: ["CHECKLIST_MANAGER"] },
-  { to: "/checklist", label: "Checklist", icon: "document-check", hiddenFor: ["REQUESTER"] },
-  { to: "/users", label: "Panel", icon: "cog-6-tooth", roles: ["ADMIN"] },
+  { to: "/", labelKey: "sidebar.dashboard", icon: "chart-pie", roles: ["AGENT", "ADMIN"] },
+  { to: "/", labelKey: "sidebar.home", icon: "chart-pie", roles: ["REQUESTER", "CHECKLIST_MANAGER"] },
+  { to: "/tickets", labelKey: "sidebar.tickets", icon: "flag", hiddenFor: ["CHECKLIST_MANAGER"] },
+  { to: "/checklist", labelKey: "sidebar.checklist", icon: "document-check", hiddenFor: ["REQUESTER"] },
+  { to: "/users", labelKey: "sidebar.panel", icon: "cog-6-tooth", roles: ["ADMIN"] },
 ] satisfies NavItem[];
 
 export default function Sidebar() {
+  const { t } = useLanguage();
   const role = getUserRole();
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -85,8 +87,8 @@ export default function Sidebar() {
             type="button"
             onClick={() => setIsCollapsed(true)}
             className="grid h-9 w-9 place-items-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white"
-            aria-label="Contraer barra lateral"
-            title="Contraer"
+            aria-label={t("sidebar.collapse")}
+            title={t("sidebar.collapse")}
           >
             <SidebarIcon name="ellipsis-horizontal" />
           </button>
@@ -98,8 +100,8 @@ export default function Sidebar() {
           type="button"
           onClick={() => setIsCollapsed(false)}
           className="mx-auto mb-4 grid h-9 w-9 place-items-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white"
-        aria-label="Expandir barra lateral"
-        title="Expandir"
+          aria-label={t("sidebar.expand")}
+          title={t("sidebar.expand")}
       >
           <SidebarIcon name="ellipsis-vertical" />
       </button>
@@ -108,10 +110,10 @@ export default function Sidebar() {
       <nav className="flex flex-1 flex-col gap-2 px-3 pt-4">
         {visibleItems.map((item) => (
           <NavLink
-            key={`${item.to}-${item.label}`}
+            key={`${item.to}-${item.labelKey}`}
             to={item.to}
             end={item.to === "/"}
-            title={isCollapsed ? item.label : undefined}
+            title={isCollapsed ? t(item.labelKey) : undefined}
             className={({ isActive }) =>
               `flex h-11 items-center rounded-lg px-3 text-sm font-semibold transition ${
                 isCollapsed ? "justify-center" : "gap-3"
@@ -125,7 +127,7 @@ export default function Sidebar() {
             <span className="grid h-7 min-w-7 place-items-center rounded-md bg-white/5 text-blue-200">
               <SidebarIcon name={item.icon} />
             </span>
-            {!isCollapsed && <span className="truncate">{item.label}</span>}
+            {!isCollapsed && <span className="truncate">{t(item.labelKey)}</span>}
           </NavLink>
         ))}
       </nav>
@@ -137,12 +139,12 @@ export default function Sidebar() {
           className={`flex h-11 w-full items-center rounded-lg px-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/15 hover:text-red-100 ${
             isCollapsed ? "justify-center" : "gap-3"
           }`}
-          title={isCollapsed ? "Salir" : undefined}
+          title={isCollapsed ? t("sidebar.logout") : undefined}
         >
           <span className="grid h-7 min-w-7 place-items-center rounded-md bg-red-500/10">
             <SidebarIcon name="arrow-left-start-on-rectangle" />
           </span>
-          {!isCollapsed && <span>Salir</span>}
+          {!isCollapsed && <span>{t("sidebar.logout")}</span>}
         </button>
       </div>
     </aside>

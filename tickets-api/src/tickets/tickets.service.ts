@@ -230,6 +230,17 @@ export class TicketsService {
         });
       }
 
+      const initialComment = (dto as any).initialComment?.trim();
+      if (initialComment) {
+        await tx.ticketMessage.create({
+          data: {
+            ticketId: ticket.id,
+            authorId: dto.requesterId,
+            content: initialComment,
+          },
+        });
+      }
+
       const createdTicket = await tx.ticket.findUnique({
         where: { id: ticket.id },
         include: {
@@ -237,6 +248,7 @@ export class TicketsService {
           requester: true,
           assignedTo: true,
           category: true,
+          messages: true,
         },
       });
       if (createdTicket) {

@@ -15,7 +15,9 @@ export class CategoriesService {
 
     return this.prisma.category.create({
       data: {
-        ...createCategoryDto,
+        name: createCategoryDto.name,
+        nameEn: createCategoryDto.nameEn?.trim() || null,
+        nameKr: createCategoryDto.nameKr?.trim() || null,
         order: nextOrder,
       } as any,
     } as any);
@@ -61,7 +63,15 @@ export class CategoriesService {
     try {
       return await this.prisma.category.update({
         where: { id },
-        data: updateCategoryDto,
+        data: {
+          ...updateCategoryDto,
+          ...(updateCategoryDto.nameEn !== undefined
+            ? { nameEn: updateCategoryDto.nameEn?.trim() || null }
+            : {}),
+          ...(updateCategoryDto.nameKr !== undefined
+            ? { nameKr: updateCategoryDto.nameKr?.trim() || null }
+            : {}),
+        },
       });
     } catch (error) {
       throw new NotFoundException('Category not found');

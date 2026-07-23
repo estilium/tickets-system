@@ -16,8 +16,10 @@ export class LocationsService {
     return this.prisma.ticketLocation.create({
       data: {
         name: createLocationDto.name,
+        nameEn: createLocationDto.nameEn?.trim() || null,
+        nameKr: createLocationDto.nameKr?.trim() || null,
         order: nextOrder,
-      },
+      } as any,
     });
   }
 
@@ -31,7 +33,15 @@ export class LocationsService {
     try {
       return await this.prisma.ticketLocation.update({
         where: { id },
-        data: updateLocationDto,
+        data: {
+          ...updateLocationDto,
+          ...(updateLocationDto.nameEn !== undefined
+            ? { nameEn: updateLocationDto.nameEn?.trim() || null }
+            : {}),
+          ...(updateLocationDto.nameKr !== undefined
+            ? { nameKr: updateLocationDto.nameKr?.trim() || null }
+            : {}),
+        } as any,
       });
     } catch (error) {
       throw new NotFoundException('Location not found');

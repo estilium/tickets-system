@@ -1,109 +1,179 @@
-# 🎬 Sistema de Gestión de Tickets
+# Sistema de Gestion de Tickets
 
-Aplicación web fullstack para la gestión de tickets, diseñada para simular un entorno real de soporte técnico y operaciones. Este repositorio contiene la API en NestJS/Prisma y la UI en React/Vite con Tailwind.
+Aplicacion web fullstack para gestion de tickets de soporte, checklist operativo, metricas y herramientas administrativas. El proyecto esta construido con una API en NestJS/Prisma/PostgreSQL y una UI en React/Vite/Tailwind.
 
----
+## Funcionalidades principales
 
-## 🚀 Funcionalidades principales
+### Tickets
 
-### 🗂 Gestión de Tickets
+- Creacion de tickets con titulo, descripcion, ubicacion, categoria e imagen inicial opcional.
+- Vista detallada con historial de mensajes, archivos adjuntos, imagen inicial, estado y usuario asignado.
+- Conversacion por ticket con adjuntos por mensaje.
+- Asignacion de tickets a usuarios con rol `AGENT` o `ADMIN`.
+- Cierre de tickets y control de permisos por rol.
+- Filtros por busqueda, ano, mes y tickets cerrados.
+- Actualizacion en vivo por Socket.io para tickets creados, actualizados, eliminados y mensajes nuevos.
 
-* Creación de tickets con título, descripción, ubicación, categoría e imagen inicial
-* Envío de mensajes dentro del ticket con adjuntos por mensaje y visualización del hilo completo
-* Vista detallada con imagen inicial, historial, archivos y usuarios asignados
-* Asignación a agentes y cierre de tickets desde la UI (solo AGENT/ADMIN)
-* Filtros para ocultar tickets cerrados y mostrar los más recientes al principio
-* Las tarjetas muestran quién creó el ticket y tienen una línea de color lateral (como el dashboard) según el estado
-* Los archivos adjuntos se sirven desde `/uploads` y pueden visualizarse desde otras máquinas apuntando al host de la API
-* Los admins pueden eliminar mensajes individuales con confirmación modal y toast de resultado
-* Los admins también pueden eliminar tickets completos desde el detalle, liberando espacio y limpiando la cola
+### Ticket historico
 
-### 🧾 Gestión de categorías
+- Acceso desde `Panel > Herramientas`.
+- Creacion de tickets con fecha y hora historica usando listas desplegables.
+- Campo de cierre por duracion en minutos. Ejemplo: si el ticket se creo a las 14:35 y se capturan 5 minutos, se guarda cerrado a las 14:40.
+- Imagen opcional.
+- Comentario inicial / serie que se guarda como mensaje dentro de la conversacion del ticket.
 
-* Creación, edición y eliminación de categorías desde el modal de usuarios
-* Reordenación con drag & drop y persistencia automática
+### Panel administrativo
 
-### 🔐 Roles y permisos
+El panel centraliza administracion y herramientas para reducir opciones visibles en la barra lateral.
 
-* `REQUESTER`: acceso limitado a Inicio y Tickets (no ve usuarios ni Kanban)
-* `AGENT`/`ADMIN`: pueden ver dashboard, Kanban, usuarios y asignar/editar/crear tickets y usuarios
-* Usuarios ADMIN solo pueden ser creados o eliminados por ADMIN
+- Usuarios: alta, edicion, roles, estado y area asignada.
+- Catalogos: categorias y ubicaciones.
+- Avisos: mensajes visibles para usuarios requester.
+- MTTR: consulta y generacion de registros historicos de tiempo de resolucion.
+- Herramientas:
+  - Administrador de checklist.
+  - Importar CSV.
+  - Kanban.
+  - Ticket historico.
+  - Admin actions.
 
-### 📊 Dashboard (métricas)
+### Catalogos
 
-* Total de tickets
-* Tickets abiertos, en progreso y cerrados (con bordes coloreados)
-* MTTR (Mean Time To Resolution) y gráficos de tendencias
+- Categorias y ubicaciones administrables desde el panel.
+- Reordenacion por drag and drop para categorias y ubicaciones.
+- Campos de traduccion opcionales:
+  - `Name EN`
+  - `Name KR`
+- El nombre base se captura en espanol y las traducciones se usan para mostrar los catalogos segun el idioma seleccionado.
 
-### 📋 Kanban Board
+### Checklist
 
-* Vista por columnas (Open / In Progress / Closed) con tarjetas arrastrables
-* Actualizaciones en tiempo real al mover tickets o recibir nuevos eventos
-* Sincronización inmediata con la API al confirmar cambios
+- Checklist diario por maquinas, items, turnos y area asignada.
+- Administrador de checklist para crear, editar, duplicar, ordenar y desactivar maquinas e items.
+- Llenado historico de checklist desde herramientas administrativas.
 
-### ⚡ Actualizaciones en vivo y mensajería
+### Kanban
 
-* Gateway Socket.io con eventos `ticket.created`, `ticket.updated` y `message.created`
-* Frontend suscrito desde `useSocketEvent`: lista, Kanban y detalle se actualizan sin recargar
-* Las conversaciones nuevas se muestran instantáneamente y el requester puede ver el historial completo
+- Vista por columnas `OPEN`, `IN_PROGRESS` y `CLOSED`.
+- Movimiento de tickets por drag and drop.
+- Sincronizacion con API y eventos en vivo.
 
-### 🌐 Acceso remoto
+### MTTR
 
-* Levanta el backend con `npm run start:dev -- --host 0.0.0.0 --port 3000` y el frontend con `npm run dev -- --host 0.0.0.0 --port 4173`
-* Actualiza `tickets-ui/src/api/api.ts` para usar `http://<IP>:3000/api` cuando se accede desde otra máquina
-* El backend habilita CORS (dominios permitidos) y expone `/uploads` para mostrar archivos desde la red
+- Consulta mensual de Mean Time To Resolution.
+- Historial de registros MTTR.
+- Backfill administrativo para generar registros historicos.
 
----
+### Importacion CSV
 
-## 🧰 Estructura
+- Carga masiva de tickets por CSV.
+- Descarga de plantilla.
+- Mapeo manual de columnas.
+- Normalizacion antes de enviar al backend.
 
-* `/tickets-api`: backend NestJS con Prisma, JWT, socket.io y filtros de error
-* `/tickets-ui`: frontend Vite con React 19, Tailwind, dnd-kit y Socket.io client
+### Multilenguaje
 
----
+La UI tiene una base multilenguaje ligera sin dependencias externas.
 
-## 🛠 Tecnologías
+- Selector `ES | KR | EN` en el header.
+- Idioma persistido en `localStorage`.
+- Diccionario central en `tickets-ui/src/i18n.tsx`.
+- Traducciones iniciales para:
+  - Header.
+  - Sidebar.
+  - Panel administrativo.
+  - Tickets.
+  - Modal de crear ticket.
+  - Ticket historico.
+  - Algunas etiquetas de catalogos.
+
+## Roles
+
+- `REQUESTER`: puede crear y consultar sus tickets.
+- `AGENT`: puede atender tickets, asignarse tickets y trabajar flujos operativos permitidos.
+- `ADMIN`: acceso completo al panel, herramientas administrativas, ticket historico, eliminacion y configuracion.
+- `CHECKLIST_MANAGER`: acceso orientado a checklist segun area asignada.
+
+## Estructura del repositorio
+
+```text
+ticket-system/
+  tickets-api/   API NestJS, Prisma, PostgreSQL, JWT, Socket.io
+  tickets-ui/    UI React, Vite, TypeScript, Tailwind, dnd-kit
+```
+
+## Tecnologias
 
 ### Backend
 
-* Node.js
-* NestJS
-* Prisma ORM + PostgreSQL
-* Socket.io para eventos en vivo
+- Node.js
+- NestJS
+- Prisma ORM
+- PostgreSQL
+- JWT
+- Socket.io
+- Multer para adjuntos
 
 ### Frontend
 
-* React 19
-* Vite
-* TypeScript
-* TailwindCSS
-* Axios
-* chart.js y dnd-kit
+- React 19
+- Vite
+- TypeScript
+- TailwindCSS
+- Axios
+- dnd-kit
+- chart.js
+- papaparse
 
----
+## Comandos utiles
 
-## ⚙️ Enfoque del proyecto
+### Backend
 
-* Replicar un flujo de trabajo tipo Jira/ServiceNow
-* Aplicar buenas prácticas en arquitectura fullstack
-* Integrar en tiempo real APIs, WebSockets y UI reactiva
+```bash
+cd tickets-api
+npm install
+npx prisma migrate deploy
+npx prisma generate
+npm run start:dev
+```
 
----
+Si `npx prisma generate` falla en Windows con `EPERM` sobre `query_engine-windows.dll.node`, cierra el servidor backend o cualquier proceso Node que este usando Prisma y vuelve a intentarlo.
 
-## ✨ Próximas mejoras
+### Frontend
 
-* Notificaciones en vivo (toasts o badges con eventos)
-* Sistema de roles más granular y revisiones de seguridad
-* Optimización del rendimiento en Kanban y listas de tickets
+```bash
+cd tickets-ui
+npm install
+npm run dev
+npm run build
+```
 
----
+## Variables y acceso local
 
-## ✍️ Autor
+La UI calcula por defecto la API como:
+
+```text
+http://<host-actual>:3000/api
+```
+
+Tambien se puede configurar con:
+
+```text
+VITE_API_URL=http://localhost:3000/api
+```
+
+## Estado actual
+
+El proyecto ya incluye una base funcional para operacion real: tickets, adjuntos, asignacion, historicos, checklist, dashboard, MTTR, importacion, catalogos ordenables y traduccion inicial.
+
+Quedan areas naturales para seguir mejorando:
+
+- Completar traducciones en todas las pantallas y mensajes.
+- Mejorar limpieza visual de pantallas antiguas.
+- Agregar pruebas automatizadas.
+- Code splitting para reducir el tamano del bundle del frontend.
+- Regenerar Prisma Client despues de cerrar procesos Node si Windows bloquea el engine.
+
+## Autor
 
 Desarrollado por Walter Barbosa (Estilium).
-
----
-
-## 📝 Notas
-
-El proyecto continúa evolucionando como parte del aprendizaje en desarrollo de software fullstack.

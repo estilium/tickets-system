@@ -26,4 +26,9 @@ export class CreateTicketDto {
   @IsOptional()
   @IsDateString()
   closedAt?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  initialComment?: string;
 }

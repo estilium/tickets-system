@@ -10,6 +10,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { api } from "../api/api";
+import { useLanguage } from "../i18n";
 import Metrics from "./Metrics";
 
 function getCurrentUserRole(): string | null {
@@ -35,12 +36,16 @@ type User = {
 type Category = {
   id: string;
   name: string;
+  nameEn?: string | null;
+  nameKr?: string | null;
   order: number;
 };
 
 type TicketLocation = {
   id: string;
   name: string;
+  nameEn?: string | null;
+  nameKr?: string | null;
   order: number;
 };
 
@@ -78,16 +83,26 @@ const defaultForm = {
 
 type AdminSection = "overview" | "users" | "catalogs" | "mttr" | "announcements" | "tools";
 
-const adminSections: Array<{ id: AdminSection; label: string }> = [
-  { id: "overview", label: "Resumen" },
-  { id: "users", label: "Usuarios" },
-  { id: "catalogs", label: "Catálogos" },
-  { id: "mttr", label: "MTTR" },
-  { id: "announcements", label: "Avisos" },
-  { id: "tools", label: "Herramientas" },
+const adminSections: Array<{
+  id: AdminSection;
+  labelKey:
+    | "admin.sections.overview"
+    | "admin.sections.users"
+    | "admin.sections.catalogs"
+    | "admin.sections.mttr"
+    | "admin.sections.announcements"
+    | "admin.sections.tools";
+}> = [
+  { id: "overview", labelKey: "admin.sections.overview" },
+  { id: "users", labelKey: "admin.sections.users" },
+  { id: "catalogs", labelKey: "admin.sections.catalogs" },
+  { id: "mttr", labelKey: "admin.sections.mttr" },
+  { id: "announcements", labelKey: "admin.sections.announcements" },
+  { id: "tools", labelKey: "admin.sections.tools" },
 ];
 
 export default function Users() {
+  const { t } = useLanguage();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<AdminSection>("overview");
@@ -99,9 +114,13 @@ export default function Users() {
   const [locations, setLocations] = useState<TicketLocation[]>([]);
   const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState("");
+  const [categoryNameEn, setCategoryNameEn] = useState("");
+  const [categoryNameKr, setCategoryNameKr] = useState("");
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [locationToEdit, setLocationToEdit] = useState<TicketLocation | null>(null);
   const [locationName, setLocationName] = useState("");
+  const [locationNameEn, setLocationNameEn] = useState("");
+  const [locationNameKr, setLocationNameKr] = useState("");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [announcementToEdit, setAnnouncementToEdit] = useState<Announcement | null>(null);
   const [announcementTitle, setAnnouncementTitle] = useState("");
@@ -258,6 +277,8 @@ export default function Users() {
 
   const openNewCategory = () => {
     setCategoryName("");
+    setCategoryNameEn("");
+    setCategoryNameKr("");
     setCategoryError("");
     setCategoryToEdit(null);
     setShowCategoryModal(true);
@@ -266,12 +287,16 @@ export default function Users() {
   const openEditCategory = (category: Category) => {
     setCategoryToEdit(category);
     setCategoryName(category.name);
+    setCategoryNameEn(category.nameEn ?? "");
+    setCategoryNameKr(category.nameKr ?? "");
     setCategoryError("");
     setShowCategoryModal(true);
   };
 
   const openNewLocation = () => {
     setLocationName("");
+    setLocationNameEn("");
+    setLocationNameKr("");
     setLocationError("");
     setLocationToEdit(null);
     setShowLocationModal(true);
@@ -280,6 +305,8 @@ export default function Users() {
   const openEditLocation = (location: TicketLocation) => {
     setLocationToEdit(location);
     setLocationName(location.name);
+    setLocationNameEn(location.nameEn ?? "");
+    setLocationNameKr(location.nameKr ?? "");
     setLocationError("");
     setShowLocationModal(true);
   };
@@ -389,15 +416,23 @@ export default function Users() {
     }
 
     try {
+      const payload = {
+        name: categoryName.trim(),
+        nameEn: categoryNameEn.trim() || null,
+        nameKr: categoryNameKr.trim() || null,
+      };
+
       if (categoryToEdit) {
-        await api.put(`/categories/${categoryToEdit.id}`, { name: categoryName.trim() });
+        await api.put(`/categories/${categoryToEdit.id}`, payload);
       } else {
-        await api.post("/categories", { name: categoryName.trim() });
+        await api.post("/categories", payload);
       }
 
       setShowCategoryModal(false);
       setCategoryToEdit(null);
       setCategoryName("");
+      setCategoryNameEn("");
+      setCategoryNameKr("");
       setCategoryError("");
       await loadCategories();
       alert(categoryToEdit ? "Categoría actualizada correctamente" : "Categoría creada correctamente");
@@ -427,15 +462,23 @@ export default function Users() {
     }
 
     try {
+      const payload = {
+        name: locationName.trim(),
+        nameEn: locationNameEn.trim() || null,
+        nameKr: locationNameKr.trim() || null,
+      };
+
       if (locationToEdit) {
-        await api.put(`/locations/${locationToEdit.id}`, { name: locationName.trim() });
+        await api.put(`/locations/${locationToEdit.id}`, payload);
       } else {
-        await api.post("/locations", { name: locationName.trim() });
+        await api.post("/locations", payload);
       }
 
       setShowLocationModal(false);
       setLocationToEdit(null);
       setLocationName("");
+      setLocationNameEn("");
+      setLocationNameKr("");
       setLocationError("");
       await loadLocations();
       alert(locationToEdit ? "Ubicación actualizada correctamente" : "Ubicación creada correctamente");
@@ -517,10 +560,10 @@ export default function Users() {
     <div className="mx-auto max-w-7xl p-4 md:p-6">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Panel de control</p>
-          <h2 className="mt-2 text-2xl font-bold text-slate-950">Administración</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">{t("admin.eyebrow")}</p>
+          <h2 className="mt-2 text-2xl font-bold text-slate-950">{t("admin.title")}</h2>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Gestiona usuarios, catálogos, avisos y herramientas del sistema desde un solo lugar.
+            {t("admin.description")}
           </p>
         </div>
 
@@ -533,7 +576,7 @@ export default function Users() {
             }}
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
-            Nuevo usuario
+            {t("admin.newUser")}
           </button>
           {isAdmin && (
             <button
@@ -544,7 +587,7 @@ export default function Users() {
               }}
               className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              Checklist
+              {t("admin.tools.checklist")}
             </button>
           )}
         </div>
@@ -572,7 +615,7 @@ export default function Users() {
                   : "border-transparent text-slate-500 hover:text-slate-900"
               }`}
             >
-              {section.label}
+              {t(section.labelKey)}
             </button>
           ))}
         </div>
@@ -585,24 +628,24 @@ export default function Users() {
             onClick={() => setActiveSection("users")}
             className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-blue-200 hover:shadow-md"
           >
-            <div className="text-sm font-semibold text-slate-900">Usuarios</div>
-            <p className="mt-2 text-sm leading-6 text-slate-500">Altas, roles, estado y áreas asignadas.</p>
+            <div className="text-sm font-semibold text-slate-900">{t("admin.cards.users")}</div>
+            <p className="mt-2 text-sm leading-6 text-slate-500">{t("admin.cards.usersDetail")}</p>
           </button>
           <button
             type="button"
             onClick={() => setActiveSection("catalogs")}
             className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-blue-200 hover:shadow-md"
           >
-            <div className="text-sm font-semibold text-slate-900">Catálogos</div>
-            <p className="mt-2 text-sm leading-6 text-slate-500">Categorías y ubicaciones para clasificar tickets.</p>
+            <div className="text-sm font-semibold text-slate-900">{t("admin.cards.catalogs")}</div>
+            <p className="mt-2 text-sm leading-6 text-slate-500">{t("admin.cards.catalogsDetail")}</p>
           </button>
           <button
             type="button"
             onClick={() => setActiveSection("mttr")}
             className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-blue-200 hover:shadow-md"
           >
-            <div className="text-sm font-semibold text-slate-900">MTTR</div>
-            <p className="mt-2 text-sm leading-6 text-slate-500">Consulta y genera registros mensuales de tiempo de resolución.</p>
+            <div className="text-sm font-semibold text-slate-900">{t("admin.cards.mttr")}</div>
+            <p className="mt-2 text-sm leading-6 text-slate-500">{t("admin.cards.mttrDetail")}</p>
           </button>
           {isAdmin && (
             <button
@@ -610,8 +653,8 @@ export default function Users() {
               onClick={() => setActiveSection("announcements")}
               className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-blue-200 hover:shadow-md"
             >
-              <div className="text-sm font-semibold text-slate-900">Avisos</div>
-              <p className="mt-2 text-sm leading-6 text-slate-500">Mensajes visibles para usuarios requester.</p>
+              <div className="text-sm font-semibold text-slate-900">{t("admin.cards.announcements")}</div>
+              <p className="mt-2 text-sm leading-6 text-slate-500">{t("admin.cards.announcementsDetail")}</p>
             </button>
           )}
           {isAdmin && (
@@ -620,8 +663,8 @@ export default function Users() {
               onClick={() => setActiveSection("tools")}
               className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-red-200 hover:shadow-md"
             >
-              <div className="text-sm font-semibold text-slate-900">Herramientas</div>
-              <p className="mt-2 text-sm leading-6 text-slate-500">Acciones globales y administración de checklist.</p>
+              <div className="text-sm font-semibold text-slate-900">{t("admin.cards.tools")}</div>
+              <p className="mt-2 text-sm leading-6 text-slate-500">{t("admin.cards.toolsDetail")}</p>
             </button>
           )}
         </div>
@@ -856,25 +899,25 @@ export default function Users() {
       {activeSection === "tools" && isAdmin && (
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-5">
-            <h3 className="text-lg font-semibold text-slate-950">Herramientas administrativas</h3>
-            <p className="text-sm text-slate-500">Accesos a módulos avanzados y acciones globales del sistema.</p>
+            <h3 className="text-lg font-semibold text-slate-950">{t("admin.tools.title")}</h3>
+            <p className="text-sm text-slate-500">{t("admin.tools.description")}</p>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <button type="button" onClick={goToChecklistAdmin} className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-blue-200 hover:bg-blue-50">
-              <div className="font-semibold text-slate-900">Administrador de checklist</div>
-              <p className="mt-1 text-sm text-slate-500">Configura máquinas, items y reglas de checklist.</p>
+              <div className="font-semibold text-slate-900">{t("admin.tools.checklist")}</div>
+              <p className="mt-1 text-sm text-slate-500">{t("admin.tools.checklistDetail")}</p>
             </button>
             <button type="button" onClick={goToImport} className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-blue-200 hover:bg-blue-50">
-              <div className="font-semibold text-slate-900">Importar CSV</div>
-              <p className="mt-1 text-sm text-slate-500">Carga tickets históricos o registros masivos desde archivo.</p>
+              <div className="font-semibold text-slate-900">{t("admin.tools.importCsv")}</div>
+              <p className="mt-1 text-sm text-slate-500">{t("admin.tools.importCsvDetail")}</p>
             </button>
             <button type="button" onClick={goToKanban} className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-blue-200 hover:bg-blue-50">
-              <div className="font-semibold text-slate-900">Kanban</div>
-              <p className="mt-1 text-sm text-slate-500">Consulta y organiza tickets por flujo de trabajo.</p>
+              <div className="font-semibold text-slate-900">{t("admin.tools.kanban")}</div>
+              <p className="mt-1 text-sm text-slate-500">{t("admin.tools.kanbanDetail")}</p>
             </button>
             <button type="button" onClick={goToHistoricalTicket} className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-blue-200 hover:bg-blue-50">
-              <div className="font-semibold text-slate-900">Ticket histórico</div>
-              <p className="mt-1 text-sm text-slate-500">Crea tickets con fecha y hora históricas para registros administrativos.</p>
+              <div className="font-semibold text-slate-900">{t("admin.tools.historicalTicket")}</div>
+              <p className="mt-1 text-sm text-slate-500">{t("admin.tools.historicalTicketDetail")}</p>
             </button>
             <button type="button" onClick={goToAdminActions} className="rounded-lg border border-red-200 bg-red-50 p-4 text-left transition hover:bg-red-100">
               <div className="font-semibold text-red-800">Admin actions</div>
@@ -993,6 +1036,8 @@ export default function Users() {
                   setShowCategoryModal(false);
                   setCategoryToEdit(null);
                   setCategoryName("");
+                  setCategoryNameEn("");
+                  setCategoryNameKr("");
                   setCategoryError("");
                 }}
                 className="text-gray-500 hover:text-gray-700"
@@ -1012,6 +1057,18 @@ export default function Users() {
                 placeholder="Nombre de la categoría"
                 className="w-full border p-2 rounded"
               />
+              <input
+                value={categoryNameEn}
+                onChange={(e) => setCategoryNameEn(e.target.value)}
+                placeholder="Name EN"
+                className="w-full border p-2 rounded"
+              />
+              <input
+                value={categoryNameKr}
+                onChange={(e) => setCategoryNameKr(e.target.value)}
+                placeholder="Name KR"
+                className="w-full border p-2 rounded"
+              />
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
@@ -1020,6 +1077,8 @@ export default function Users() {
                   setShowCategoryModal(false);
                   setCategoryToEdit(null);
                   setCategoryName("");
+                  setCategoryNameEn("");
+                  setCategoryNameKr("");
                   setCategoryError("");
                 }}
                 className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
@@ -1051,6 +1110,8 @@ export default function Users() {
                   setShowLocationModal(false);
                   setLocationToEdit(null);
                   setLocationName("");
+                  setLocationNameEn("");
+                  setLocationNameKr("");
                   setLocationError("");
                 }}
                 className="text-gray-500 hover:text-gray-700"
@@ -1070,6 +1131,18 @@ export default function Users() {
                 placeholder="Nombre de la ubicación"
                 className="w-full border p-2 rounded"
               />
+              <input
+                value={locationNameEn}
+                onChange={(e) => setLocationNameEn(e.target.value)}
+                placeholder="Name EN"
+                className="w-full border p-2 rounded"
+              />
+              <input
+                value={locationNameKr}
+                onChange={(e) => setLocationNameKr(e.target.value)}
+                placeholder="Name KR"
+                className="w-full border p-2 rounded"
+              />
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
@@ -1078,6 +1151,8 @@ export default function Users() {
                   setShowLocationModal(false);
                   setLocationToEdit(null);
                   setLocationName("");
+                  setLocationNameEn("");
+                  setLocationNameKr("");
                   setLocationError("");
                 }}
                 className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"

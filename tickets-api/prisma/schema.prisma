@@ -85,6 +85,8 @@ model TicketMessage {
 model Category {
   id    String  @id @default(uuid())
   name  String
+  nameEn String?
+  nameKr String?
   order Int     @default(0)
   tickets Ticket[]
 }
@@ -92,6 +94,8 @@ model Category {
 model TicketLocation {
   id    String @id @default(uuid())
   name  String @unique
+  nameEn String?
+  nameKr String?
   order Int    @default(0)
 }
 
