@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api/api";
 
 type ChecklistItem = {
@@ -34,6 +35,8 @@ const emptyItem = {
 };
 
 export default function AdminChecklist() {
+  const navigate = useNavigate();
+
   const currentUser = useMemo(() => {
     const rawUser = localStorage.getItem("user");
     if (!rawUser) return null;
@@ -317,9 +320,18 @@ export default function AdminChecklist() {
 
   return (
     <div className="p-4 md:p-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold">Administracion de checklist</h2>
-        <p className="text-sm text-gray-500">Administra maquinas y puntos de revision.</p>
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Administracion de checklist</h2>
+          <p className="text-sm text-gray-500">Administra maquinas y puntos de revision.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate("/users")}
+          className="inline-flex w-fit items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+        >
+          Volver a Users
+        </button>
       </div>
 
       {error && <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}

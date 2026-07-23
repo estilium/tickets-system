@@ -23,6 +23,27 @@ export class UsersService {
     });
   }
 
+  async findAssignableUsers() {
+    return this.prisma.user.findMany({
+      where: {
+        role: { in: ['AGENT', 'ADMIN'] },
+        active: true,
+      },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        role: true,
+        assignedArea: true,
+      },
+      orderBy: [
+        { role: 'asc' },
+        { name: 'asc' },
+      ],
+    });
+  }
+
   async findAll() {
     return this.prisma.user.findMany({
       select: {

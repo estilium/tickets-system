@@ -3,6 +3,17 @@ import { useParams, useNavigate } from "react-router-dom"
 import { api } from "../api/api"
 import { useSocketEvent, getAttachmentUrl } from "../hooks/useRealtime"
 
+const formatDate = (date: string | Date) => {
+  const d = new Date(date);
+  return d.toLocaleString("es-MX", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 
 export default function TicketDetail() {
 
@@ -70,10 +81,10 @@ export default function TicketDetail() {
 
   async function loadAgents() {
     try {
-      const res = await api.get("/users?role=AGENT")
+      const res = await api.get("/users?role=ASSIGNEE")
       setUsers(res.data)
     } catch (err) {
-      console.error("Error loading agents:", err)
+      console.error("Error loading assignable users:", err)
     }
   }
 
@@ -181,19 +192,62 @@ if (fileRef.current) {
   }
 
   async function handleDeleteTicket() {
-    if (!ticket) return;
+    if (!ticket) {
+      console.error("❌ No hay ticket para eliminar");
+      return;
+    }
+    
+    console.log("🗑️ Iniciando eliminación de ticket");
+    console.log("Usuario actual:", currentUser);
+    console.log("¿Es Admin?:", currentUser?.role === "ADMIN");
+    console.log("Ticket ID:", ticket.id);
+    
     setIsDeletingTicket(true);
 
     try {
-      await api.delete(`/tickets/${ticket.id}`);
-      setToast({ message: "Ticket eliminado", type: "success" });
+      const ticketId = ticket.id;
+      const fullUrl = `/tickets/${ticketId}`;
+      console.log("📤 Enviando solicitud DELETE a:", fullUrl);
+      
+      const response = await api.delete(fullUrl);
+      
+      console.log("✅ Respuesta del servidor:", response);
+      console.log("✅ Status:", response.status);
+      console.log("✅ Ticket eliminado exitosamente");
+      console.log("✅ Esperando a que el servidor notifique a otros clientes...");
+      
+      // Show success toast
+      setToast({ message: "✅ Ticket eliminado correctamente", type: "success" });
       setShowDeleteTicketModal(false);
-      navigate("/tickets");
-    } catch (err) {
-      console.error("Error deleting ticket", err);
-      setToast({ message: "No se pudo eliminar el ticket", type: "error" });
-    } finally {
       setIsDeletingTicket(false);
+      
+      // Wait a bit then redirect
+      console.log("⏳ Redirigiendo a /tickets en 3 segundos...");
+      setTimeout(() => {
+        console.log("🚀 Redirigiendo ahora...");
+        navigate("/tickets");
+      }, 3000);
+      
+    } catch (err: any) {
+      setIsDeletingTicket(false);
+      console.error("❌ Error completo:", err);
+      console.error("Status:", err.response?.status);
+      console.error("StatusText:", err.response?.statusText);
+      console.error("Data:", err.response?.data);
+      console.error("Error message:", err.message);
+      
+      let errorMsg = "No se pudo eliminar el ticket";
+      
+      if (err.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      } else if (err.response?.statusText) {
+        errorMsg = `Error ${err.response.status}: ${err.response.statusText}`;
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      
+      console.error("❌ Mensaje de error final:", errorMsg);
+      setToast({ message: "❌ " + (typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg)), type: "error" });
     }
   }
 
@@ -261,10 +315,10 @@ if (fileRef.current) {
             onChange={(e) => setSelectedUserId(e.target.value)}
             className="border rounded px-3 py-2 text-sm"
           >
-            <option value="">Selecciona agente...</option>
+            <option value="">Selecciona Agente</option>
             {users.map((u) => (
               <option key={u.id} value={u.id}>
-                {u.name || u.email}
+                {u.name || u.email} ({u.role})
               </option>
             ))}
           </select>
@@ -314,6 +368,14 @@ if (fileRef.current) {
 
       </div>
 
+      {/* CREATED AT */}
+      <div className="text-sm text-gray-500 mb-4">
+        <span>📅 Creado: {formatDate(ticket.createdAt)}</span>
+        {ticket.closedAt && (
+          <span className="ml-4">✓ Cerrado: {formatDate(ticket.closedAt)}</span>
+        )}
+      </div>
+
       {/* DESCRIPTION */}
       <p className="mb-10 text-gray-600 whitespace-pre-wrap text-lg leading-relaxed">
         {ticket.description}
@@ -345,7 +407,11 @@ if (fileRef.current) {
           <div key={m.id} className="rounded-3xl bg-slate-100 p-4 shadow-sm">
             <div className="text-xs text-gray-500 mb-2">
               <div className="flex items-center justify-between">
-                <span>{m.author?.name}</span>
+                <div className="flex items-center gap-2">
+                  <span>{m.author?.name}</span>
+                  <span className="text-gray-400">•</span>
+                  <span>{formatDate(m.createdAt)}</span>
+                </div>
                 {isAdmin && (
                   <button
                     className="text-red-600 text-[10px] uppercase tracking-wide"
@@ -467,24 +533,41 @@ if (fileRef.current) {
       {showDeleteTicketModal && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold text-red-600 mb-3">⚠️ Eliminar Ticket</h3>
             <p className="text-sm text-gray-700 mb-4">
               Este ticket se eliminará permanentemente junto con sus mensajes y archivos.
-              ¿Deseas continuar?
+              <br />
+              <br />
+              <strong>Esta acción no se puede deshacer.</strong>
             </p>
+            <div className="bg-gray-100 p-3 rounded mb-4">
+              <p className="text-xs text-gray-600">ID: <code>{ticket?.id}</code></p>
+              <p className="text-xs text-gray-600">Título: <strong>{ticket?.title}</strong></p>
+            </div>
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-                onClick={() => setShowDeleteTicketModal(false)}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 font-semibold"
+                onClick={() => {
+                  console.log("❌ Cancelando eliminación");
+                  setShowDeleteTicketModal(false);
+                }}
                 disabled={isDeletingTicket}
               >
                 Cancelar
               </button>
               <button
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 font-semibold flex items-center gap-2"
                 onClick={handleDeleteTicket}
                 disabled={isDeletingTicket}
               >
-                {isDeletingTicket ? "Eliminando…" : "Eliminar ticket"}
+                {isDeletingTicket ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Eliminando…
+                  </>
+                ) : (
+                  <>🗑️ Sí, eliminar ticket</>
+                )}
               </button>
             </div>
           </div>

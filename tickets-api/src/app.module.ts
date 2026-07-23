@@ -5,7 +5,9 @@ import { AuthModule } from './auth/auth.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { UsersModule } from './users/users.module';
 import { CategoriesModule } from './tickets/category/categories.module';
+import { LocationsModule } from './tickets/locations/locations.module';
 import { ChecklistModule } from './checklist/checklist.module';
+import { AnnouncementsModule } from './announcements/announcements.module';
 
 @Module({
   imports: [
@@ -15,7 +17,9 @@ import { ChecklistModule } from './checklist/checklist.module';
     MetricsModule,
     UsersModule,
     CategoriesModule,
+    LocationsModule,
     ChecklistModule,
+    AnnouncementsModule,
   ],
 })
 export class AppModule {}

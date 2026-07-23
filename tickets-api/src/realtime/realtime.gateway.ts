@@ -5,6 +5,7 @@ import { ALLOWED_ORIGINS } from '../common/constants/allowed-origins';
 export const REALTIME_EVENTS = {
   TICKET_CREATED: 'ticket.created',
   TICKET_UPDATED: 'ticket.updated',
+  TICKET_DELETED: 'ticket.deleted',
   MESSAGE_CREATED: 'message.created',
 };
 
@@ -27,6 +28,11 @@ export class RealtimeGateway implements OnGatewayInit {
 
   emitTicketUpdated(payload: any) {
     this.server?.emit(REALTIME_EVENTS.TICKET_UPDATED, payload);
+  }
+
+  emitTicketDeleted(ticketId: string) {
+    console.log('📡 Emitiendo ticket.deleted:', ticketId);
+    this.server?.emit(REALTIME_EVENTS.TICKET_DELETED, ticketId);
   }
 
   emitMessageCreated(payload: any) {

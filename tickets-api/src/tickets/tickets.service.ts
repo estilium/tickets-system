@@ -17,7 +17,7 @@ export class TicketsService {
 
   async findAll(user: any, query: any) {
     const page = Number(query.page ?? 1);
-    const limit = Number(query.limit ?? 20);
+    const limit = Number(query.limit ?? 1000); // Aumentado de 20 a 1000 por defecto
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -56,6 +56,8 @@ export class TicketsService {
       }),
       this.prisma.ticket.count({ where }),
     ]);
+
+    console.log(`📊 GET /tickets - Total: ${total}, Devolviendo: ${items.length}`);
 
     return {
       data: items,
@@ -263,10 +265,16 @@ export class TicketsService {
   }
 
   async remove(id: string) {
+    console.log('🗑️ Iniciando eliminación de ticket:', id);
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const result = await this.prisma.$transaction(async (tx) => {
+        console.log('🗑️ Eliminando attachments...');
         await tx.ticketAttachment.deleteMany({ where: { ticketId: id } });
+        
+        console.log('🗑️ Eliminando mensajes...');
         await tx.ticketMessage.deleteMany({ where: { ticketId: id } });
+        
+        console.log('🗑️ Eliminando ticket...');
         const ticket = await tx.ticket.delete({
           where: { id },
           include: {
@@ -276,9 +284,16 @@ export class TicketsService {
             attachments: true,
           },
         });
+        console.log('✅ Ticket eliminado exitosamente:', ticket.id);
         return ticket;
       });
+      
+      // Emit WebSocket event to notify all clients
+      this.realtime.emitTicketDeleted(result.id);
+      
+      return result;
     } catch (e: any) {
+      console.error('❌ Error al eliminar ticket:', e);
       if (
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === 'P2025'
@@ -468,8 +483,8 @@ export class TicketsService {
     });
 
     if (!target) throw new NotFoundException('Assigned user not found');
-    if (target.role === 'REQUESTER')
-      throw new BadRequestException('Cannot assign to REQUESTER');
+    if (target.role !== 'AGENT' && target.role !== 'ADMIN')
+      throw new BadRequestException('Ticket can only be assigned to AGENT or ADMIN users');
 
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.ticket.update({

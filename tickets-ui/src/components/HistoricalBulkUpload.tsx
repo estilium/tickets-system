@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Papa from "papaparse";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api/api";
 
 const TARGET_FIELDS = [
@@ -16,6 +17,7 @@ const TARGET_FIELDS = [
 ];
 
 export default function HistoricalBulkUpload() {
+  const navigate = useNavigate();
   const [origFile, setOrigFile] = useState<File | null>(null);
   const [previewHeaders, setPreviewHeaders] = useState<string[]>([]);
   const [previewRows, setPreviewRows] = useState<string[][]>([]);
@@ -118,7 +120,16 @@ export default function HistoricalBulkUpload() {
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-semibold mb-4">Carga masiva de tickets (CSV)</h2>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <h2 className="text-2xl font-semibold">Carga masiva de tickets (CSV)</h2>
+        <button
+          type="button"
+          onClick={() => navigate("/users")}
+          className="inline-flex w-fit items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+        >
+          Panel admin
+        </button>
+      </div>
 
       <div className="mb-4 flex gap-2">
         <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={downloadTemplate}>

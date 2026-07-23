@@ -15,6 +15,10 @@ export class UsersController {
 
   @Get()
   findUsers(@Query('role') role?: string) {
+    if (role === 'ASSIGNEE') {
+      return this.usersService.findAssignableUsers();
+    }
+
     if (role === 'AGENT') {
       return this.usersService.findAgents();
     }

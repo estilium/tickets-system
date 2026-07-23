@@ -122,28 +122,30 @@ export class TicketsController {
     return this.ticketsService.update(id, updateTicketDto);
   }
 
-  @Delete('all')
-  @UseGuards(JwtAuthGuard)
-  async deleteAll(@Req() req: any) {
-    // Solo permitir a admins o roles específicos
-    if (req.user.role !== 'ADMIN') {
-      throw new ForbiddenException('No tienes permisos para esta acción');
-    }
-    return this.ticketsService.deleteAll();
-  }
-
   @Delete(':ticketId/messages/:messageId')
   @UseGuards(JwtAuthGuard, AdminGuard)
   removeMessage(
     @Param('ticketId') ticketId: string,
     @Param('messageId') messageId: string,
   ) {
+    console.log('🗑️ DELETE /tickets/:ticketId/messages/:messageId');
     return this.ticketsService.removeMessage(ticketId, messageId);
+  }
+
+  @Delete('all')
+  @UseGuards(JwtAuthGuard)
+  async deleteAll(@Req() req: any) {
+    console.log('🗑️ DELETE /tickets/all');
+    if (req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('No tienes permisos para esta acción');
+    }
+    return this.ticketsService.deleteAll();
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
   remove(@Param('id') id: string) {
+    console.log('🗑️ DELETE /tickets/:id - Eliminando ticket:', id);
     return this.ticketsService.remove(id);
   }
 

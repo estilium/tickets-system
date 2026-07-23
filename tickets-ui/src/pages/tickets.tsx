@@ -2,11 +2,23 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/api";
 import { useSocketEvent } from "../hooks/useRealtime";
+import { ticketLocations } from "../constants/ticketLocations";
 
 const statusBorderColors: Record<string, string> = {
   OPEN: "border-blue-500",
   IN_PROGRESS: "border-yellow-500",
   CLOSED: "border-green-500",
+};
+
+const formatDate = (date: string | Date) => {
+  const d = new Date(date);
+  return d.toLocaleString("es-MX", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
 const ticketCardClass = (status: string) =>
@@ -20,10 +32,13 @@ export default function Tickets() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [ticketLocation, setTicketLocation] = useState("");
+  const [availableLocations, setAvailableLocations] = useState(ticketLocations);
   const [categoryId, setCategoryId] = useState("");
   const [categories, setCategories] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showClosed, setShowClosed] = useState(true);
+  const [filterYear, setFilterYear] = useState<string>("");
+  const [filterMonth, setFilterMonth] = useState<string>("");
 
   // 🔥 modal state
   const [showModal, setShowModal] = useState(false);
@@ -34,10 +49,19 @@ export default function Tickets() {
 
 
   async function loadTickets() {
-    const res = await api.get("/tickets");
-    setTickets(res.data.data);
-    setLoading(false);
+    try {
+      const res = await api.get("/tickets");
+      setTickets(res.data.data);
+      setLoading(false);
+    } catch (err) {
+      console.error("❌ Error cargando tickets:", err);
+      setLoading(false);
+    }
   }
+
+  useSocketEvent("ticket.deleted", (deletedTicketId: any) => {
+    setTickets((prev) => prev.filter((ticket) => ticket.id !== deletedTicketId));
+  });
 
   useSocketEvent("ticket.updated", (updated: any) => {
     setTickets((prev) =>
@@ -64,10 +88,24 @@ export default function Tickets() {
 
 useEffect(() => {
   api.get("/categories").then(res => {
-    console.log("CATEGORIES:", res.data);
-
     setCategories(res.data?.data ?? res.data ?? []);
   });
+}, []);
+
+useEffect(() => {
+  api.get("/locations")
+    .then((res) => {
+      const locations = (res.data?.data ?? res.data ?? []).map((location: any) => ({
+        value: location.name,
+        label: location.name,
+      }));
+      if (locations.length > 0) {
+        setAvailableLocations(locations);
+      }
+    })
+    .catch((err) => {
+      console.error("Error cargando ubicaciones:", err);
+    });
 }, []);
 
   async function handleCreate() {
@@ -118,7 +156,22 @@ useEffect(() => {
       t.title?.toLowerCase().includes(search.toLowerCase()) ||
       t.description?.toLowerCase().includes(search.toLowerCase()) ||
       t.assignedTo?.name?.toLowerCase().includes(search.toLowerCase())
-    );
+    )
+    .filter((t: any) => {
+      if (!filterYear && !filterMonth) return true;
+      const createdDate = new Date(t.createdAt);
+      const ticketYear = createdDate.getFullYear().toString();
+      const ticketMonth = (createdDate.getMonth() + 1).toString().padStart(2, "0");
+      
+      if (filterYear && ticketYear !== filterYear) return false;
+      if (filterMonth && ticketMonth !== filterMonth) return false;
+      return true;
+    });
+
+  // Get unique years from tickets
+  const availableYears = Array.from(
+    new Set(tickets.map((t: any) => new Date(t.createdAt).getFullYear().toString()))
+  ).sort().reverse();
 
   if (loading) return <div>Loading...</div>;
 
@@ -165,15 +218,70 @@ useEffect(() => {
 
 </div>
       {/* buscador y filtros */}
-      <div className="flex flex-col gap-2 mb-4 md:flex-row md:items-center md:justify-between">
-        <input
-          type="text"
-          placeholder="Search tickets..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border rounded p-2 w-full md:w-1/2"
-        />
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 mb-4">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Search tickets..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border rounded p-2 flex-1"
+          />
+          {(search || filterYear || filterMonth) && (
+            <button
+              onClick={() => {
+                setSearch("");
+                setFilterYear("");
+                setFilterMonth("");
+              }}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <select
+              value={filterYear}
+              onChange={(e) => {
+                setFilterYear(e.target.value);
+                setFilterMonth("");
+              }}
+              className="border rounded p-2 text-sm"
+            >
+              <option value="">Todos los años</option>
+              {availableYears.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="border rounded p-2 text-sm"
+              disabled={!filterYear}
+            >
+              <option value="">Todos los meses</option>
+              <option value="01">Enero</option>
+              <option value="02">Febrero</option>
+              <option value="03">Marzo</option>
+              <option value="04">Abril</option>
+              <option value="05">Mayo</option>
+              <option value="06">Junio</option>
+              <option value="07">Julio</option>
+              <option value="08">Agosto</option>
+              <option value="09">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </select>
+          </div>
+
           <label className="flex items-center gap-2 text-sm text-gray-600">
             <input
               type="checkbox"
@@ -186,18 +294,43 @@ useEffect(() => {
       </div>
 
       {/* cards */}
-      {filteredTickets.map((t: any) => (
+      <div className="mb-4 text-sm text-gray-600">
+        <span className="font-semibold">
+          {filteredTickets.length} ticket{filteredTickets.length !== 1 ? 's' : ''} 
+        </span>
+        {filteredTickets.length !== tickets.length && (
+          <span> de {tickets.length} total</span>
+        )}
+      </div>
+
+      {filteredTickets.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          <p>No se encontraron tickets con los filtros aplicados.</p>
+          <button
+            onClick={() => {
+              setSearch("");
+              setFilterYear("");
+              setFilterMonth("");
+            }}
+            className="mt-2 text-blue-600 hover:underline"
+          >
+            Limpiar todos los filtros
+          </button>
+        </div>
+      ) : (
+        <>
+          {filteredTickets.map((t: any) => (
         <Link key={t.id} to={`/tickets/${t.id}`} className={ticketCardClass(t.status)}>
         <div className="flex justify-between items-center">
             <div className="font-semibold text-lg">{t.title}</div>
             <StatusBadge status={t.status} />
        </div>
 
-        <div className="text-gray-500 text-sm mt-1">
+        <div className="text-gray-500 text-sm mt-1 line-clamp-2">
   {t.description}
 </div>
 
-            {/* 🔥 NUEVO */}
+            {/* 🔥 INFO DEL TICKET */}
             <div className="flex gap-4 mt-2 text-xs text-gray-500">
 
               <div>
@@ -209,20 +342,29 @@ useEffect(() => {
               </div>
 
             </div>
-        <div className="flex justify-between items-center mt-3 text-sm">
-          <div className="text-gray-400">
-             Ticket #{t.id.slice(0, 6)}
+
+            {/* ID COMPLETO Y FECHA */}
+            <div className="bg-gray-50 rounded p-2 mt-3 text-xs font-mono">
+              <div className="text-gray-600">
+                🆔 {t.id}
+              </div>
+              <div className="text-gray-500 mt-1">
+                📅 Creado: {formatDate(t.createdAt)}
+              </div>
             </div>
 
-            <div className="text-gray-600">
+        <div className="flex justify-between items-center mt-3 text-sm">
+          <div className="text-gray-600">
               👤 {t.assignedTo?.name ?? "Unassigned"}
           </div>
-        </div>
-        <div className="text-xs text-gray-500 mt-2">
-          Creado por {t.requester?.name ?? t.requester?.email ?? "desconocido"}
+          <div className="text-gray-500 text-xs">
+            Creado por {t.requester?.name ?? t.requester?.email ?? "desconocido"}
+          </div>
         </div>
         </Link>
       ))}
+        </>
+      )}
 
       {/* 🔥 MODAL (AHORA SÍ BIEN PUESTO) */}
       {showModal && (
@@ -284,14 +426,11 @@ useEffect(() => {
               required
             >
               <option value="">Selecciona ubicación / 위치 *</option>
-              <option value="Oficina General">Oficina General / 총무실 </option>
-              <option value="Pintura">Pintura / 그림 </option>
-              <option value="Inyección">Inyección / 주사</option>
-              <option value="Embarques">Embarques / 선적</option>
-              <option value="almacen">Almacén/ 창고</option>
-              <option value="moldes">Moldes / 금형</option>
-              <option value="HR">HR / 인적 자원</option>
-              <option value="Enfermería">Enfermería</option>
+              {availableLocations.map((location) => (
+                <option key={location.value} value={location.value}>
+                  {location.label}
+                </option>
+              ))}
             </select>
 
               <select

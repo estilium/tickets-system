@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { api } from "../api/api"
+import { ticketLocations } from "../constants/ticketLocations"
 
 export default function NewTicket() {
   const Navigate = useNavigate()
@@ -8,6 +9,7 @@ export default function NewTicket() {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [ticketLocation, setTicketLocation] = useState("")
+  const [availableLocations, setAvailableLocations] = useState(ticketLocations)
   const [categoryId, setCategoryId] = useState("")
   const [categories, setCategories] = useState<any[]>([])
   const [createdAt, setCreatedAt] = useState<string | null>(null)
@@ -22,6 +24,20 @@ export default function NewTicket() {
     api.get('/categories').then((res) => {
       setCategories(res.data?.data ?? res.data ?? [])
     })
+
+    api.get('/locations')
+      .then((res) => {
+        const locations = (res.data?.data ?? res.data ?? []).map((location: any) => ({
+          value: location.name,
+          label: location.name,
+        }))
+        if (locations.length > 0) {
+          setAvailableLocations(locations)
+        }
+      })
+      .catch((err) => {
+        console.error('Error cargando ubicaciones:', err)
+      })
   }, [])
 
   async function createTicket(e: any) {
@@ -94,14 +110,11 @@ export default function NewTicket() {
           className="border rounded p-2 w-full"
         >
           <option value="">Select location</option>
-          <option value="Oficina General">Oficina General</option>
-          <option value="Pintura">Pintura</option>
-          <option value="Inyección">Inyección</option>
-          <option value="Embarques">Embarques</option>
-          <option value="almacen">Almacén</option>
-          <option value="moldes">Moldes</option>
-          <option value="HR">HR</option>
-          <option value="Enfermería">Enfermería</option>
+          {availableLocations.map((location) => (
+            <option key={location.value} value={location.value}>
+              {location.label}
+            </option>
+          ))}
         </select>
 
         <select
