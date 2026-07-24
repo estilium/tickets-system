@@ -62,7 +62,7 @@ export class TicketsController {
     }
 
     return this.ticketsService.createWithAttachments(
-      { ...createTicketDto, requesterId: req.user.id } as any,
+      { ...createTicketDto, requesterId: req.user.id, creatorId: req.user.id } as any,
       files || [],
     );
   }

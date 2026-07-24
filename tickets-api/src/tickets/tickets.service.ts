@@ -10,6 +10,13 @@ import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { Prisma } from '@prisma/client';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { parse } from 'csv-parse/sync';
+import { randomUUID } from 'crypto';
+
+const historicalRequester = {
+  email: 'empleado@system.local',
+  username: 'empleado',
+  name: 'Empleado',
+} as const;
 
 @Injectable()
 export class TicketsService {
@@ -86,34 +93,12 @@ export class TicketsService {
     const results: { created: any[]; errors: any[] } = { created: [], errors: [] };
 
     await this.prisma.$transaction(async (tx) => {
+      const requester = await this.findOrCreateHistoricalRequester(tx);
+
       for (let i = 0; i < records.length; i++) {
         const row = records[i];
         const rowNum = i + 1;
         try {
-          // Resolve requester (email required)
-          const requesterEmail = row.requesterEmail || row.requester_email || row.requester;
-          if (!requesterEmail) {
-            results.errors.push({ row: rowNum, error: 'requesterEmail missing' });
-            continue;
-          }
-          const requester = await tx.user.findUnique({ where: { email: requesterEmail } });
-          if (!requester) {
-            results.errors.push({ row: rowNum, error: `requester not found (${requesterEmail})` });
-            continue;
-          }
-
-          // Optional assigned user
-          let assignedToId: string | undefined = undefined;
-          const assignedEmail = row.assignedToEmail || row.assigned_to_email || row.assigned_to;
-          if (assignedEmail) {
-            const assigned = await tx.user.findUnique({ where: { email: assignedEmail } });
-            if (!assigned) {
-              results.errors.push({ row: rowNum, error: `assigned user not found (${assignedEmail})` });
-              continue;
-            }
-            assignedToId = assigned.id;
-          }
-
           // Optional category
           let categoryId: string | undefined = undefined;
           const categoryName = row.category || row.categoryName || row.category_name;
@@ -128,7 +113,7 @@ export class TicketsService {
             requesterId: requester.id,
             ticketLocation: row.ticketLocation || row.ticket_location || null,
             categoryId: categoryId ?? null,
-            assignedToId: assignedToId ?? null,
+            assignedToId: user.id,
           };
 
           if (row.priority) data.priority = (row.priority as string).toUpperCase();
@@ -175,14 +160,24 @@ export class TicketsService {
     });
   }
 
-  create(dto: CreateTicketDto & { requesterId: string }) {
+  async create(dto: CreateTicketDto & { requesterId: string; creatorId?: string }) {
+    const historicalTicket = this.isHistoricalTicket(dto);
+    const requesterId = historicalTicket
+      ? (await this.findOrCreateHistoricalRequester(this.prisma)).id
+      : dto.requesterId;
+
     const data: any = {
       title: dto.title,
       description: dto.description,
-      requesterId: dto.requesterId,
+      requesterId,
       ticketLocation: dto.ticketLocation,
       categoryId: dto.categoryId,
     };
+
+    if (historicalTicket) {
+      data.assignedToId = dto.creatorId ?? dto.requesterId;
+      data.status = (dto as any).closedAt ? 'CLOSED' : 'IN_PROGRESS';
+    }
 
     if ((dto as any).createdAt) {
       data.createdAt = new Date((dto as any).createdAt);
@@ -197,17 +192,27 @@ export class TicketsService {
   }
 
   async createWithAttachments(
-    dto: CreateTicketDto & { requesterId: string },
+    dto: CreateTicketDto & { requesterId: string; creatorId?: string },
     files: Express.Multer.File[],
   ) {
     return this.prisma.$transaction(async (tx) => {
+      const historicalTicket = this.isHistoricalTicket(dto);
+      const requesterId = historicalTicket
+        ? (await this.findOrCreateHistoricalRequester(tx)).id
+        : dto.requesterId;
+
       const data: any = {
         title: dto.title,
         description: dto.description,
-        requesterId: dto.requesterId,
+        requesterId,
         ticketLocation: dto.ticketLocation,
         categoryId: dto.categoryId,
       };
+
+      if (historicalTicket) {
+        data.assignedToId = dto.creatorId ?? dto.requesterId;
+        data.status = (dto as any).closedAt ? 'CLOSED' : 'IN_PROGRESS';
+      }
 
       if ((dto as any).createdAt) data.createdAt = new Date((dto as any).createdAt);
       if ((dto as any).closedAt) {
@@ -235,7 +240,7 @@ export class TicketsService {
         await tx.ticketMessage.create({
           data: {
             ticketId: ticket.id,
-            authorId: dto.requesterId,
+            authorId: requesterId,
             content: initialComment,
           },
         });
@@ -256,6 +261,35 @@ export class TicketsService {
       }
 
       return createdTicket;
+    });
+  }
+
+  private isHistoricalTicket(dto: CreateTicketDto) {
+    return Boolean((dto as any).createdAt || (dto as any).closedAt);
+  }
+
+  private async findOrCreateHistoricalRequester(tx: any) {
+    const existing = await tx.user.findFirst({
+      where: {
+        OR: [
+          { email: historicalRequester.email },
+          { username: historicalRequester.username },
+          { name: historicalRequester.name },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (existing) return existing;
+
+    return tx.user.create({
+      data: {
+        ...historicalRequester,
+        password: randomUUID(),
+        role: 'REQUESTER',
+        active: false,
+      },
+      select: { id: true },
     });
   }
 

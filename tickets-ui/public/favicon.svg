@@ -1,0 +1,7 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ticket MA">
+  <rect width="64" height="64" rx="12" fill="#020617"/>
+  <g fill="#ffffff" font-family="Georgia, 'Times New Roman', serif" font-weight="700">
+    <text x="2" y="54" font-size="54">M</text>
+    <text x="32" y="54" font-size="54">A</text>
+  </g>
+</svg>

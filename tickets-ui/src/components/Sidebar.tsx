@@ -1,6 +1,7 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useLanguage } from "../i18n";
+import autotechLogo from "../assets/autotech-logo.svg";
 
 function getUserRole() {
   const rawUser = localStorage.getItem("user");
@@ -18,6 +19,7 @@ const sidebarStorageKey = "sidebar:collapsed";
 type IconName =
   | "chart-pie"
   | "flag"
+  | "document-plus"
   | "document-check"
   | "cog-6-tooth"
   | "ellipsis-horizontal"
@@ -26,7 +28,13 @@ type IconName =
 
 type NavItem = {
   to: string;
-  labelKey: "sidebar.dashboard" | "sidebar.home" | "sidebar.tickets" | "sidebar.checklist" | "sidebar.panel";
+  labelKey:
+    | "sidebar.dashboard"
+    | "sidebar.home"
+    | "sidebar.tickets"
+    | "sidebar.historicalReport"
+    | "sidebar.checklist"
+    | "sidebar.panel";
   icon: IconName;
   roles?: string[];
   hiddenFor?: string[];
@@ -36,6 +44,7 @@ const navItems = [
   { to: "/", labelKey: "sidebar.dashboard", icon: "chart-pie", roles: ["AGENT", "ADMIN"] },
   { to: "/", labelKey: "sidebar.home", icon: "chart-pie", roles: ["REQUESTER", "CHECKLIST_MANAGER"] },
   { to: "/tickets", labelKey: "sidebar.tickets", icon: "flag", hiddenFor: ["CHECKLIST_MANAGER"] },
+  { to: "/tickets/new", labelKey: "sidebar.historicalReport", icon: "document-plus", roles: ["ADMIN"] },
   { to: "/checklist", labelKey: "sidebar.checklist", icon: "document-check", hiddenFor: ["REQUESTER"] },
   { to: "/users", labelKey: "sidebar.panel", icon: "cog-6-tooth", roles: ["ADMIN"] },
 ] satisfies NavItem[];
@@ -43,6 +52,7 @@ const navItems = [
 export default function Sidebar() {
   const { t } = useLanguage();
   const role = getUserRole();
+  const location = useLocation();
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(() => {
     return localStorage.getItem(sidebarStorageKey) === "true";
@@ -72,8 +82,8 @@ export default function Sidebar() {
     >
       <div className={`flex items-center gap-3 px-4 py-5 ${isCollapsed ? "justify-center" : "justify-between"}`}>
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-blue-400/30 bg-blue-500/10 text-xl font-black text-blue-100">
-            M
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-blue-400/30 bg-blue-500/10 p-1.5">
+            <img src={autotechLogo} alt="M Autotech" className="h-full w-full object-contain" />
           </div>
           {!isCollapsed && (
             <div className="min-w-0">
@@ -114,15 +124,18 @@ export default function Sidebar() {
             to={item.to}
             end={item.to === "/"}
             title={isCollapsed ? t(item.labelKey) : undefined}
-            className={({ isActive }) =>
-              `flex h-11 items-center rounded-lg px-3 text-sm font-semibold transition ${
+            className={({ isActive }) => {
+              const isTicketsLinkOnHistory = item.to === "/tickets" && location.pathname === "/tickets/new";
+              const active = isActive && !isTicketsLinkOnHistory;
+
+              return `flex h-11 items-center rounded-lg px-3 text-sm font-semibold transition ${
                 isCollapsed ? "justify-center" : "gap-3"
               } ${
-                isActive
+                active
                   ? "bg-blue-500/20 text-white ring-1 ring-blue-300/20"
                   : "text-slate-300 hover:bg-white/10 hover:text-white"
-              }`
-            }
+              }`;
+            }}
           >
             <span className="grid h-7 min-w-7 place-items-center rounded-md bg-white/5 text-blue-200">
               <SidebarIcon name={item.icon} />
@@ -183,6 +196,15 @@ function SidebarIcon({ name }: { name: IconName }) {
       <svg {...commonProps}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 3.75H6.75A2.25 2.25 0 0 0 4.5 6v12a2.25 2.25 0 0 0 2.25 2.25h10.5A2.25 2.25 0 0 0 19.5 18V8.25L15 3.75h-4.5Z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M15 3.75v4.5h4.5M8.25 13.5l2.25 2.25 5.25-5.25" />
+      </svg>
+    );
+  }
+
+  if (name === "document-plus") {
+    return (
+      <svg {...commonProps}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 3.75H6.75A2.25 2.25 0 0 0 4.5 6v12a2.25 2.25 0 0 0 2.25 2.25h10.5A2.25 2.25 0 0 0 19.5 18V8.25L15 3.75h-4.5Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 3.75v4.5h4.5M12 11.25v5.25M9.375 13.875h5.25" />
       </svg>
     );
   }
