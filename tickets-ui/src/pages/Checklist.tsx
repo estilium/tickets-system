@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { api } from "../api/api";
 
 type Shift = "SHIFT_1" | "SHIFT_2";
 type ItemStatus = "OK" | "NG";
+type MaintenanceStatus = "OK" | "NG";
 
 type ChecklistItem = {
   id: string;
@@ -36,8 +38,54 @@ type ChecklistMachine = {
   area?: string | null;
   category?: string | null;
   active: boolean;
+  maintenanceEnabled?: boolean;
+  maintenanceFrequencyMonths?: number;
+  maintenanceStartMonth?: number | null;
+  maintenanceType?: string | null;
   items: ChecklistItem[];
   runs?: ChecklistRun[];
+};
+
+type MaintenanceRun = {
+  id: string;
+  machineId: string;
+  year: number;
+  month: number;
+  status: MaintenanceStatus;
+  observation?: string | null;
+  completedAt: string;
+  agent?: { name: string; username?: string };
+};
+
+type MaintenanceMonthReport = {
+  year: number;
+  month: number;
+  expected: number;
+  completed: number;
+  withNg: number;
+  compliance: number;
+  machines: Array<ChecklistMachine & { maintenanceRun?: MaintenanceRun | null }>;
+};
+
+type MaintenanceAnnualReport = {
+  year: number;
+  expected: number;
+  completed: number;
+  withNg: number;
+  percent: number;
+  rows: Array<{
+    machine: ChecklistMachine;
+    months: Array<{
+      month: number;
+      planned: boolean;
+      status: MaintenanceStatus | "PRG" | "NA";
+      observation?: string | null;
+      agent?: { name: string; username?: string } | null;
+    }>;
+    total: number;
+    expected: number;
+    percent: number;
+  }>;
 };
 
 type Report = {
@@ -65,8 +113,10 @@ const shiftLabel: Record<Shift, string> = {
   SHIFT_2: "Turno 2",
 };
 
+const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
 export default function Checklist() {
-  const [view, setView] = useState<"capture" | "report">("capture");
+  const [view, setView] = useState<"capture" | "report" | "maintenance">("capture");
   const [date, setDate] = useState(today);
   const [shift, setShift] = useState<Shift>("SHIFT_1");
   const [machines, setMachines] = useState<ChecklistMachine[]>([]);
@@ -86,6 +136,12 @@ export default function Checklist() {
   const [error, setError] = useState("");
   const [reportMonth, setReportMonth] = useState(currentMonth);
   const [report, setReport] = useState<Report | null>(null);
+  const [maintenanceMonth, setMaintenanceMonth] = useState(currentMonth);
+  const [maintenanceReport, setMaintenanceReport] = useState<MaintenanceMonthReport | null>(null);
+  const [maintenanceYear, setMaintenanceYear] = useState(String(new Date().getFullYear()));
+  const [maintenanceAnnual, setMaintenanceAnnual] = useState<MaintenanceAnnualReport | null>(null);
+  const [maintenanceObservations, setMaintenanceObservations] = useState<Record<string, string>>({});
+  const [maintenanceSavingId, setMaintenanceSavingId] = useState<string | null>(null);
 
   const selectedMachine = machines.find((machine) => machine.id === selectedMachineId) ?? null;
   const selectedRun = selectedMachine?.runs?.find((run) => run.shift === shift) ?? null;
@@ -132,6 +188,14 @@ export default function Checklist() {
   }, [reportMonth]);
 
   useEffect(() => {
+    loadMaintenanceMonth();
+  }, [maintenanceMonth]);
+
+  useEffect(() => {
+    loadMaintenanceAnnual();
+  }, [maintenanceYear]);
+
+  useEffect(() => {
     if (!selectedMachine) {
       setResponses({});
       return;
@@ -173,6 +237,58 @@ export default function Checklist() {
       setReport(res.data);
     } catch (err) {
       console.error(err);
+    }
+  }
+
+  async function loadMaintenanceMonth() {
+    try {
+      const res = await api.get("/checklist/maintenance/month", { params: { month: maintenanceMonth } });
+      setMaintenanceReport(res.data);
+      const nextObservations: Record<string, string> = {};
+      res.data.machines.forEach((machine: ChecklistMachine & { maintenanceRun?: MaintenanceRun | null }) => {
+        nextObservations[machine.id] = machine.maintenanceRun?.observation ?? "";
+      });
+      setMaintenanceObservations(nextObservations);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function loadMaintenanceAnnual() {
+    try {
+      const res = await api.get("/checklist/maintenance/annual", { params: { year: maintenanceYear } });
+      setMaintenanceAnnual(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function saveMaintenance(machine: ChecklistMachine, status: MaintenanceStatus) {
+    const [year, month] = maintenanceMonth.split("-").map(Number);
+    const observation = maintenanceObservations[machine.id] ?? "";
+
+    if (status === "NG" && !observation.trim()) {
+      setError("Cada NG requiere una observacion");
+      return;
+    }
+
+    setMaintenanceSavingId(machine.id);
+    setError("");
+    try {
+      await api.post("/checklist/maintenance/runs", {
+        machineId: machine.id,
+        year,
+        month,
+        status,
+        observation,
+      });
+      await loadMaintenanceMonth();
+      await loadMaintenanceAnnual();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.message || "No se pudo guardar el mantenimiento");
+    } finally {
+      setMaintenanceSavingId(null);
     }
   }
 
@@ -257,6 +373,12 @@ export default function Checklist() {
             className={`rounded px-4 py-3 font-semibold ${view === "report" ? "bg-blue-600 text-white" : "bg-white text-gray-700 shadow"}`}
           >
             Reporte mensual
+          </button>
+          <button
+            onClick={() => setView("maintenance")}
+            className={`rounded px-4 py-3 font-semibold ${view === "maintenance" ? "bg-blue-600 text-white" : "bg-white text-gray-700 shadow"}`}
+          >
+            Mantenimiento
           </button>
         </div>
       </div>
@@ -425,10 +547,235 @@ export default function Checklist() {
             </div>
           </div>
         </>
-      ) : (
+      ) : view === "report" ? (
         <ReportView report={report} reportMonth={reportMonth} setReportMonth={setReportMonth} />
+      ) : (
+        <MaintenanceView
+          month={maintenanceMonth}
+          setMonth={setMaintenanceMonth}
+          report={maintenanceReport}
+          year={maintenanceYear}
+          setYear={setMaintenanceYear}
+          annual={maintenanceAnnual}
+          observations={maintenanceObservations}
+          setObservations={setMaintenanceObservations}
+          savingId={maintenanceSavingId}
+          onSave={saveMaintenance}
+        />
       )}
     </div>
+  );
+}
+
+function MaintenanceView({
+  month,
+  setMonth,
+  report,
+  year,
+  setYear,
+  annual,
+  observations,
+  setObservations,
+  savingId,
+  onSave,
+}: {
+  month: string;
+  setMonth: (value: string) => void;
+  report: MaintenanceMonthReport | null;
+  year: string;
+  setYear: (value: string) => void;
+  annual: MaintenanceAnnualReport | null;
+  observations: Record<string, string>;
+  setObservations: Dispatch<SetStateAction<Record<string, string>>>;
+  savingId: string | null;
+  onSave: (machine: ChecklistMachine, status: MaintenanceStatus) => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[220px_1fr]">
+        <label className="text-sm font-semibold text-gray-700">
+          Mes a trabajar
+          <input
+            type="month"
+            value={month}
+            onChange={(event) => setMonth(event.target.value)}
+            className="mt-1 h-12 w-full rounded-lg border border-slate-200 px-3 text-base outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+          />
+        </label>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+          <Metric label="Cumplimiento" value={`${report?.compliance ?? 0}%`} />
+          <Metric label="Realizados" value={`${report?.completed ?? 0} / ${report?.expected ?? 0}`} />
+          <Metric label="Con NG" value={`${report?.withNg ?? 0}`} />
+          <Metric label="Programados" value={`${report?.machines.length ?? 0}`} />
+        </div>
+      </div>
+
+      <div className="w-full rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">Reporte anual de mantenimiento</h3>
+            <p className="text-sm text-gray-500">PRG = programado pendiente, NA = no aplica.</p>
+          </div>
+          <label className="text-sm font-semibold text-gray-700">
+            Ano
+            <input
+              type="number"
+              min={2000}
+              max={2100}
+              value={year}
+              onChange={(event) => setYear(event.target.value)}
+              className="mt-1 h-12 w-32 rounded-lg border border-slate-200 px-3 text-base outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            />
+          </label>
+        </div>
+
+        <div className="mb-3 grid grid-cols-1 gap-3 md:grid-cols-4">
+          <Metric label="Cumplimiento anual" value={`${annual?.percent ?? 0}%`} />
+          <Metric label="Realizados" value={`${annual?.completed ?? 0} / ${annual?.expected ?? 0}`} />
+          <Metric label="Con NG" value={`${annual?.withNg ?? 0}`} />
+          <Metric label="Equipos" value={`${annual?.rows.length ?? 0}`} />
+        </div>
+
+        <div className="w-full overflow-x-auto rounded-lg border border-slate-200">
+          <table className="w-full min-w-[1120px] table-fixed border-collapse text-left text-sm">
+            <thead>
+              <tr className="bg-slate-50">
+                <th className="w-40 border-b border-slate-200 px-3 py-3 text-xs font-semibold uppercase text-slate-500">Modelo</th>
+                <th className="w-32 border-b border-slate-200 px-3 py-3 text-xs font-semibold uppercase text-slate-500">Area</th>
+                <th className="w-28 border-b border-slate-200 px-3 py-3 text-xs font-semibold uppercase text-slate-500">Tipo</th>
+                {monthNames.map((monthName) => (
+                  <th key={monthName} className="border-b border-slate-200 px-1 py-3 text-center text-xs font-semibold uppercase text-slate-500">
+                    {monthName}
+                  </th>
+                ))}
+                <th className="w-16 border-b border-slate-200 px-2 py-3 text-center text-xs font-semibold uppercase text-slate-500">Total</th>
+                <th className="w-20 border-b border-slate-200 px-2 py-3 text-center text-xs font-semibold uppercase text-slate-500">Porcent</th>
+              </tr>
+            </thead>
+            <tbody>
+              {annual?.rows.length ? (
+                annual.rows.map((row) => (
+                  <tr key={row.machine.id} className="transition hover:bg-slate-50">
+                    <td className="border-b border-slate-100 px-3 py-3">
+                      <p className="truncate font-semibold" title={row.machine.code}>{row.machine.code}</p>
+                      <p className="truncate text-xs text-gray-500" title={row.machine.name}>{row.machine.name}</p>
+                    </td>
+                    <td className="truncate border-b border-slate-100 px-3 py-3" title={row.machine.area || "-"}>
+                      {row.machine.area || "-"}
+                    </td>
+                    <td className="truncate border-b border-slate-100 px-3 py-3" title={row.machine.maintenanceType || "Prev"}>
+                      {row.machine.maintenanceType || "Prev"}
+                    </td>
+                    {row.months.map((item) => (
+                      <td key={`${row.machine.id}-${item.month}`} className="border-b border-slate-100 px-1 py-3 text-center">
+                        <MaintenanceBadge status={item.status} compact />
+                      </td>
+                    ))}
+                    <td className="border-b border-slate-100 px-2 py-3 text-center font-semibold">{row.total}</td>
+                    <td className="border-b border-slate-100 px-2 py-3 text-center font-semibold">{row.percent}%</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td className="px-3 py-5 text-gray-500" colSpan={17}>
+                    No hay equipos con plan de mantenimiento.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-4 py-4">
+          <h3 className="text-lg font-semibold">Mantenimientos programados del mes</h3>
+        </div>
+        <div className="overflow-auto">
+          <table className="min-w-full text-left">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-4 py-3 text-xs font-semibold uppercase text-slate-500">Equipo</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase text-slate-500">Area</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase text-slate-500">Tipo</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase text-slate-500">Estado</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase text-slate-500">Observacion</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase text-slate-500">Accion</th>
+              </tr>
+            </thead>
+            <tbody>
+              {report?.machines.length ? (
+                report.machines.map((machine) => (
+                  <tr key={machine.id} className="border-t border-slate-100 align-top transition hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-gray-900">{machine.code}</p>
+                      <p className="text-sm text-gray-500">{machine.name}</p>
+                    </td>
+                    <td className="px-4 py-3">{machine.area || "-"}</td>
+                    <td className="px-4 py-3">{machine.maintenanceType || "Preventivo"}</td>
+                    <td className="px-4 py-3">
+                      <MaintenanceBadge status={machine.maintenanceRun?.status ?? "PRG"} />
+                      {machine.maintenanceRun?.agent && (
+                        <p className="mt-1 text-xs text-gray-500">{machine.maintenanceRun.agent.name}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <textarea
+                        value={observations[machine.id] ?? ""}
+                        onChange={(event) =>
+                          setObservations((current) => ({ ...current, [machine.id]: event.target.value }))
+                        }
+                        className="min-h-20 w-72 max-w-full rounded-lg border border-slate-200 p-2 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                        placeholder="Observacion si aplica"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => onSave(machine, "OK")}
+                          disabled={savingId === machine.id}
+                          className="rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
+                        >
+                          OK
+                        </button>
+                        <button
+                          onClick={() => onSave(machine, "NG")}
+                          disabled={savingId === machine.id}
+                          className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                        >
+                          NG
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td className="px-4 py-5 text-gray-500" colSpan={6}>
+                    No hay equipos programados para este mes.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MaintenanceBadge({ status, compact = false }: { status: MaintenanceStatus | "PRG" | "NA"; compact?: boolean }) {
+  const styles = {
+    OK: "border-green-200 bg-green-50 text-green-700",
+    NG: "border-red-200 bg-red-50 text-red-700",
+    PRG: "border-amber-200 bg-amber-50 text-amber-700",
+    NA: "border-slate-200 bg-slate-50 text-slate-500",
+  }[status];
+
+  return (
+    <span className={`inline-flex rounded-full border font-bold ${compact ? "px-2 py-0.5 text-[11px]" : "px-3 py-1 text-xs"} ${styles}`}>
+      {status}
+    </span>
   );
 }
 
@@ -538,7 +885,7 @@ function ReportView({
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-white p-4 shadow">
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <p className="text-sm font-semibold text-gray-500">{label}</p>
       <p className="mt-1 text-3xl font-bold text-gray-900">{value}</p>
     </div>

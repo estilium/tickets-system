@@ -8,6 +8,7 @@ import { CategoriesModule } from './tickets/category/categories.module';
 import { LocationsModule } from './tickets/locations/locations.module';
 import { ChecklistModule } from './checklist/checklist.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AnnouncementsModule } from './announcements/announcements.module';
     LocationsModule,
     ChecklistModule,
     AnnouncementsModule,
+    InventoryModule,
   ],
 })
 export class AppModule {}

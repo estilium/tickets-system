@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class CreateMachineDto {
   @IsString()
@@ -18,4 +18,24 @@ export class CreateMachineDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  maintenanceEnabled?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  maintenanceFrequencyMonths?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  maintenanceStartMonth?: number;
+
+  @IsOptional()
+  @IsString()
+  maintenanceType?: string;
 }

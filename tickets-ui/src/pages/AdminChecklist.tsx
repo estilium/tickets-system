@@ -17,6 +17,10 @@ type ChecklistMachine = {
   area?: string | null;
   category?: string | null;
   active: boolean;
+  maintenanceEnabled: boolean;
+  maintenanceFrequencyMonths: number;
+  maintenanceStartMonth?: number | null;
+  maintenanceType?: string | null;
   items: ChecklistItem[];
 };
 
@@ -26,6 +30,10 @@ const emptyMachine = {
   area: "",
   category: "",
   active: true,
+  maintenanceEnabled: false,
+  maintenanceFrequencyMonths: 2,
+  maintenanceStartMonth: 1,
+  maintenanceType: "Preventivo",
 };
 
 const emptyItem = {
@@ -33,6 +41,8 @@ const emptyItem = {
   description: "",
   active: true,
 };
+
+const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
 export default function AdminChecklist() {
   const navigate = useNavigate();
@@ -61,6 +71,8 @@ export default function AdminChecklist() {
   const [error, setError] = useState("");
   const [fillInfo, setFillInfo] = useState("");
   const [fillLoading, setFillLoading] = useState(false);
+  const [planInfo, setPlanInfo] = useState("");
+  const [planLoading, setPlanLoading] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [draggedMachine, setDraggedMachine] = useState<ChecklistMachine | null>(null);
 
@@ -150,7 +162,36 @@ export default function AdminChecklist() {
       area: machine.area ?? "",
       category: machine.category ?? "",
       active: machine.active,
+      maintenanceEnabled: machine.maintenanceEnabled ?? false,
+      maintenanceFrequencyMonths: machine.maintenanceFrequencyMonths ?? 2,
+      maintenanceStartMonth: machine.maintenanceStartMonth ?? 1,
+      maintenanceType: machine.maintenanceType ?? "Preventivo",
     });
+  }
+
+  async function assignAlternateMaintenancePlan() {
+    setError("");
+    setPlanInfo("");
+
+    const targetLabel = selectedArea || assignedArea || "todas las areas";
+    const confirmed = window.confirm(
+      `Asignar plan de mantenimiento alternado a maquinas activas de ${targetLabel}? La posicion 1, 3, 5 queda en meses nones y 2, 4, 6 en meses pares.`,
+    );
+    if (!confirmed) return;
+
+    setPlanLoading(true);
+    try {
+      const res = await api.post("/checklist/machines/maintenance/alternate", {
+        area: assignedArea ?? selectedArea ?? undefined,
+      });
+      setPlanInfo(res.data?.message || "Plan de mantenimiento asignado correctamente");
+      await loadMachines();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.message || "No se pudo asignar el plan alternado");
+    } finally {
+      setPlanLoading(false);
+    }
   }
 
   async function saveMachine() {
@@ -164,6 +205,8 @@ export default function AdminChecklist() {
       const payload = {
         ...machineForm,
         area: assignedArea ?? machineForm.area,
+        maintenanceFrequencyMonths: Number(machineForm.maintenanceFrequencyMonths) || 2,
+        maintenanceStartMonth: Number(machineForm.maintenanceStartMonth) || 1,
       };
 
       if (editingMachineId) {
@@ -396,6 +439,71 @@ export default function AdminChecklist() {
                 />
                 Activa
               </label>
+
+              <div className="rounded border border-slate-200 bg-slate-50 p-4">
+                <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={machineForm.maintenanceEnabled}
+                    onChange={(event) =>
+                      setMachineForm((form) => ({ ...form, maintenanceEnabled: event.target.checked }))
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  Incluir en plan de mantenimiento
+                </label>
+
+                {machineForm.maintenanceEnabled && (
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <label className="space-y-1 min-w-0">
+                      <span className="text-sm font-medium text-gray-700">Tipo</span>
+                      <input
+                        value={machineForm.maintenanceType}
+                        onChange={(event) =>
+                          setMachineForm((form) => ({ ...form, maintenanceType: event.target.value }))
+                        }
+                        placeholder="Preventivo"
+                        className="w-full rounded border px-3 py-2"
+                      />
+                    </label>
+                    <label className="space-y-1 min-w-0">
+                      <span className="text-sm font-medium text-gray-700">Cada meses</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={12}
+                        value={machineForm.maintenanceFrequencyMonths}
+                        onChange={(event) =>
+                          setMachineForm((form) => ({
+                            ...form,
+                            maintenanceFrequencyMonths: Number(event.target.value),
+                          }))
+                        }
+                        className="w-full rounded border px-3 py-2"
+                      />
+                    </label>
+                    <label className="space-y-1 min-w-0">
+                      <span className="text-sm font-medium text-gray-700">Mes inicial</span>
+                      <select
+                        value={machineForm.maintenanceStartMonth}
+                        onChange={(event) =>
+                          setMachineForm((form) => ({
+                            ...form,
+                            maintenanceStartMonth: Number(event.target.value),
+                          }))
+                        }
+                        className="w-full rounded border px-3 py-2"
+                      >
+                        {monthNames.map((month, index) => (
+                          <option key={month} value={index + 1}>
+                            {month}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="mt-4 flex gap-2">
               <button onClick={saveMachine} className="rounded bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">
@@ -476,6 +584,29 @@ export default function AdminChecklist() {
               </div>
               <span className="text-sm text-gray-500">{filteredMachines.length}</span>
             </div>
+            <div className="mb-4 rounded border border-blue-100 bg-blue-50 p-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">Plan alternado</p>
+                  <p className="text-xs text-blue-700">
+                    Posicion 1, 3, 5 en meses nones; posicion 2, 4, 6 en meses pares.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={assignAlternateMaintenancePlan}
+                  disabled={planLoading || filteredMachines.length === 0}
+                  className="h-10 rounded bg-blue-600 px-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {planLoading ? "Asignando..." : "Asignar a todas"}
+                </button>
+              </div>
+              {planInfo && (
+                <div className="mt-3 rounded border border-green-200 bg-green-50 p-2 text-xs font-semibold text-green-700">
+                  {planInfo}
+                </div>
+              )}
+            </div>
             {areas.length > 0 && (
               <div className="mb-4">
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -528,7 +659,12 @@ export default function AdminChecklist() {
                       <div className="flex-1">
                         <p className="font-bold">{machine.code}</p>
                         <p className="text-sm text-gray-600">{machine.name}</p>
-                        <p className="text-xs text-gray-500">{machine.items.length} puntos</p>
+                        <p className="text-xs text-gray-500">
+                          {machine.items.length} puntos
+                          {machine.maintenanceEnabled
+                            ? ` - Mant. cada ${machine.maintenanceFrequencyMonths || 2} meses`
+                            : ""}
+                        </p>
                       </div>
                       <span className={`rounded px-2 py-1 text-xs font-semibold ${machine.active ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"}`}>
                         {machine.active ? "Activa" : "Inactiva"}
@@ -549,6 +685,9 @@ export default function AdminChecklist() {
                   <h3 className="text-xl font-bold">{selectedMachine.code} - {selectedMachine.name}</h3>
                   <p className="text-sm text-gray-500">
                     {selectedMachine.area || "Sin area"} - {selectedMachine.category || "Sin categoria"}
+                    {selectedMachine.maintenanceEnabled
+                      ? ` - ${selectedMachine.maintenanceType || "Preventivo"} desde ${monthNames[(selectedMachine.maintenanceStartMonth || 1) - 1]}`
+                      : ""}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">

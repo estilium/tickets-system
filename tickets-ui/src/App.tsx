@@ -12,6 +12,7 @@ import AdminActions from "./pages/AdminActions";
 import Checklist from "./pages/Checklist";
 import AdminChecklist from "./pages/AdminChecklist";
 import Metrics from "./pages/Metrics";
+import Inventory from "./pages/Inventory";
 import HistoricalBulkUpload from "./components/HistoricalBulkUpload";
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
         <Route path="users" element={<Users />} />
         <Route path="kanban" element={<Kanban />} />
         <Route path="metrics" element={<Metrics />} />
+        <Route path="inventory" element={<Inventory />} />
         <Route path="checklist" element={<Checklist />} />
         <Route path="admin/checklist" element={<AdminChecklist />} />
         <Route path="admin/actions" element={<AdminActions />} />

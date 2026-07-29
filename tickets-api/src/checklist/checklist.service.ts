@@ -5,8 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AlternateMaintenancePlanDto } from './dto/alternate-maintenance-plan.dto';
 import { CreateItemDto } from './dto/create-item.dto';
 import { CreateMachineDto } from './dto/create-machine.dto';
+import { CreateMaintenanceRunDto } from './dto/create-maintenance-run.dto';
 import { CreateRunDto } from './dto/create-run.dto';
 import { DuplicateMachineDto } from './dto/duplicate-machine.dto';
 import { FillHistoricalDto } from './dto/fill-historical.dto';
@@ -34,6 +36,14 @@ const monthRange = (month: string) => {
   return { start, end, days };
 };
 
+const parseYearMonth = (month: string) => {
+  const [year, monthIndex] = month.split('-').map(Number);
+  if (!year || !monthIndex || monthIndex < 1 || monthIndex > 12) {
+    throw new BadRequestException('Mes invalido');
+  }
+  return { year, month: monthIndex };
+};
+
 @Injectable()
 export class ChecklistService {
   constructor(private prisma: PrismaService) {}
@@ -50,6 +60,10 @@ export class ChecklistService {
         area: user?.assignedArea ? user.assignedArea : dto.area?.trim() || null,
         category: dto.category?.trim() || null,
         active: dto.active ?? true,
+        maintenanceEnabled: dto.maintenanceEnabled ?? false,
+        maintenanceFrequencyMonths: dto.maintenanceFrequencyMonths ?? 2,
+        maintenanceStartMonth: dto.maintenanceStartMonth ?? null,
+        maintenanceType: dto.maintenanceType?.trim() || 'Preventivo',
       },
       include: { items: { orderBy: { order: 'asc' } } },
     });
@@ -103,6 +117,18 @@ export class ChecklistService {
             ? { category: dto.category?.trim() || null }
             : {}),
           ...(dto.active !== undefined ? { active: dto.active } : {}),
+          ...(dto.maintenanceEnabled !== undefined
+            ? { maintenanceEnabled: dto.maintenanceEnabled }
+            : {}),
+          ...(dto.maintenanceFrequencyMonths !== undefined
+            ? { maintenanceFrequencyMonths: dto.maintenanceFrequencyMonths }
+            : {}),
+          ...(dto.maintenanceStartMonth !== undefined
+            ? { maintenanceStartMonth: dto.maintenanceStartMonth }
+            : {}),
+          ...(dto.maintenanceType !== undefined
+            ? { maintenanceType: dto.maintenanceType?.trim() || 'Preventivo' }
+            : {}),
         },
         include: { items: { orderBy: { order: 'asc' } } },
       });
@@ -176,6 +202,10 @@ export class ChecklistService {
         area: source.area,
         category: source.category,
         active: source.active,
+        maintenanceEnabled: source.maintenanceEnabled,
+        maintenanceFrequencyMonths: source.maintenanceFrequencyMonths,
+        maintenanceStartMonth: source.maintenanceStartMonth,
+        maintenanceType: source.maintenanceType,
         items: {
           create: source.items.map((item) => ({
             label: item.label,
@@ -442,6 +472,163 @@ export class ChecklistService {
     return { month, expected, completed, withNg, compliance, byShift, byMachine, runs };
   }
 
+  private isMaintenanceDue(machine: any, year: number, month: number) {
+    if (!machine.maintenanceEnabled) return false;
+    const frequency = machine.maintenanceFrequencyMonths || 2;
+    const startMonth = machine.maintenanceStartMonth || 1;
+    const monthOffset = (year * 12 + month) - (year * 12 + startMonth);
+    return monthOffset >= 0 && monthOffset % frequency === 0;
+  }
+
+  async maintenanceMonth(monthValue: string, user?: any) {
+    const { year, month } = parseYearMonth(monthValue);
+    const where: any = { active: true, maintenanceEnabled: true };
+    if (user?.assignedArea) {
+      where.area = user.assignedArea;
+    }
+
+    const machines = await (this.prisma as any).checklistMachine.findMany({
+      where,
+      orderBy: [{ order: 'asc' }, { code: 'asc' }],
+    });
+    const dueMachines = machines.filter((machine) => this.isMaintenanceDue(machine, year, month));
+    const runs = await (this.prisma as any).maintenanceRun.findMany({
+      where: {
+        year,
+        month,
+        machineId: { in: dueMachines.map((machine) => machine.id) },
+      },
+      include: { agent: { select: { id: true, name: true, username: true } } },
+    });
+    const runsByMachine = new Map(runs.map((run) => [run.machineId, run]));
+
+    return {
+      year,
+      month,
+      expected: dueMachines.length,
+      completed: runs.length,
+      withNg: runs.filter((run) => run.status === 'NG').length,
+      compliance: dueMachines.length ? Math.round((runs.length / dueMachines.length) * 1000) / 10 : 0,
+      machines: dueMachines.map((machine) => ({
+        ...machine,
+        maintenanceRun: runsByMachine.get(machine.id) ?? null,
+      })),
+    };
+  }
+
+  async createMaintenanceRun(dto: CreateMaintenanceRunDto, user: { id: string; assignedArea?: string }) {
+    const machine = await (this.prisma as any).checklistMachine.findUnique({
+      where: { id: dto.machineId },
+    });
+    if (!machine) {
+      throw new NotFoundException('Maquina no encontrada');
+    }
+    if (user?.assignedArea && machine.area !== user.assignedArea) {
+      throw new ForbiddenException('No puedes capturar mantenimientos de otra area');
+    }
+    if (!this.isMaintenanceDue(machine, dto.year, dto.month)) {
+      throw new BadRequestException('Esta maquina no esta programada para mantenimiento en este mes');
+    }
+    if (dto.status === 'NG' && !dto.observation?.trim()) {
+      throw new BadRequestException('Cada NG requiere observacion');
+    }
+
+    return (this.prisma as any).maintenanceRun.upsert({
+      where: {
+        machineId_year_month: {
+          machineId: dto.machineId,
+          year: dto.year,
+          month: dto.month,
+        },
+      },
+      create: {
+        machineId: dto.machineId,
+        agentId: user.id,
+        year: dto.year,
+        month: dto.month,
+        status: dto.status,
+        observation: dto.observation?.trim() || null,
+      },
+      update: {
+        agentId: user.id,
+        status: dto.status,
+        observation: dto.observation?.trim() || null,
+        completedAt: new Date(),
+      },
+      include: {
+        machine: true,
+        agent: { select: { id: true, name: true, username: true } },
+      },
+    });
+  }
+
+  async maintenanceAnnualReport(year: number, user?: any) {
+    if (!year || year < 2000 || year > 2100) {
+      throw new BadRequestException('Ano invalido');
+    }
+
+    const where: any = { active: true, maintenanceEnabled: true };
+    if (user?.assignedArea) {
+      where.area = user.assignedArea;
+    }
+
+    const machines = await (this.prisma as any).checklistMachine.findMany({
+      where,
+      orderBy: [{ area: 'asc' }, { order: 'asc' }, { code: 'asc' }],
+    });
+    const runs = await (this.prisma as any).maintenanceRun.findMany({
+      where: {
+        year,
+        machineId: { in: machines.map((machine) => machine.id) },
+      },
+      include: { agent: { select: { id: true, name: true, username: true } } },
+    });
+    const runKey = (machineId: string, month: number) => `${machineId}:${month}`;
+    const runsByMachineMonth = new Map<string, any>(
+      runs.map((run) => [runKey(run.machineId, run.month), run]),
+    );
+
+    let expected = 0;
+    let completed = 0;
+    let withNg = 0;
+
+    const rows = machines.map((machine) => {
+      const months = Array.from({ length: 12 }, (_, index) => {
+        const month = index + 1;
+        const planned = this.isMaintenanceDue(machine, year, month);
+        const run = runsByMachineMonth.get(runKey(machine.id, month)) ?? null;
+        if (planned) expected++;
+        if (run) completed++;
+        if (run?.status === 'NG') withNg++;
+        return {
+          month,
+          planned,
+          status: run?.status ?? (planned ? 'PRG' : 'NA'),
+          observation: run?.observation ?? null,
+          agent: run?.agent ?? null,
+        };
+      });
+      const machineExpected = months.filter((item) => item.planned).length;
+      const machineCompleted = months.filter((item) => item.status === 'OK' || item.status === 'NG').length;
+      return {
+        machine,
+        months,
+        total: machineCompleted,
+        expected: machineExpected,
+        percent: machineExpected ? Math.round((machineCompleted / machineExpected) * 1000) / 10 : 0,
+      };
+    });
+
+    return {
+      year,
+      expected,
+      completed,
+      withNg,
+      percent: expected ? Math.round((completed / expected) * 1000) / 10 : 0,
+      rows,
+    };
+  }
+
   private ensureMachine(id: string) {
     return (this.prisma as any).checklistMachine
       .findUnique({ where: { id } })
@@ -476,6 +663,52 @@ export class ChecklistService {
       where: { id: { in: dto.machineIds } },
       include: { items: { orderBy: { order: 'asc' } } },
     });
+  }
+
+  async alternateMaintenancePlan(dto: AlternateMaintenancePlanDto, user?: any) {
+    const requestedArea = dto.area?.trim() || null;
+    if (user?.assignedArea && requestedArea && requestedArea !== user.assignedArea) {
+      throw new ForbiddenException('No puedes configurar mantenimientos de otra area');
+    }
+
+    const where: any = { active: true };
+    if (user?.assignedArea) {
+      where.area = user.assignedArea;
+    } else if (requestedArea) {
+      where.area = requestedArea;
+    }
+
+    const machines = await (this.prisma as any).checklistMachine.findMany({
+      where,
+      orderBy: [{ order: 'asc' }, { code: 'asc' }],
+    });
+
+    if (machines.length === 0) {
+      throw new NotFoundException('No hay maquinas activas para asignar');
+    }
+
+    const updates = machines.map((machine, index) =>
+      (this.prisma as any).checklistMachine.update({
+        where: { id: machine.id },
+        data: {
+          maintenanceEnabled: true,
+          maintenanceFrequencyMonths: 2,
+          maintenanceStartMonth: index % 2 === 0 ? 1 : 2,
+          maintenanceType: machine.maintenanceType || 'Preventivo',
+        },
+      }),
+    );
+
+    await (this.prisma as any).$transaction(updates);
+
+    const oddMonthCount = Math.ceil(machines.length / 2);
+    const evenMonthCount = Math.floor(machines.length / 2);
+    return {
+      total: machines.length,
+      oddMonthCount,
+      evenMonthCount,
+      message: `Se asignaron ${machines.length} maquinas: ${oddMonthCount} en meses nones y ${evenMonthCount} en meses pares`,
+    };
   }
 
   async fillHistorical(dto: FillHistoricalDto, agentId: string) {

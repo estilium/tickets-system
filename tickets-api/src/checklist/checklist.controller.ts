@@ -14,8 +14,10 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { ChecklistService } from './checklist.service';
+import { AlternateMaintenancePlanDto } from './dto/alternate-maintenance-plan.dto';
 import { CreateItemDto } from './dto/create-item.dto';
 import { CreateMachineDto } from './dto/create-machine.dto';
+import { CreateMaintenanceRunDto } from './dto/create-maintenance-run.dto';
 import { CreateRunDto } from './dto/create-run.dto';
 import { DuplicateMachineDto } from './dto/duplicate-machine.dto';
 import { FillHistoricalDto } from './dto/fill-historical.dto';
@@ -46,6 +48,12 @@ export class ChecklistController {
   reorderMachines(@Body() dto: ReorderMachinesDto) {
     console.log('Reorder endpoint called with:', dto);
     return this.checklistService.reorderMachines(dto);
+  }
+
+  @Post('machines/maintenance/alternate')
+  @UseGuards(AdminGuard)
+  alternateMaintenancePlan(@Body() dto: AlternateMaintenancePlanDto, @Req() req: any) {
+    return this.checklistService.alternateMaintenancePlan(dto, req.user);
   }
 
   @Patch('machines/:id')
@@ -110,6 +118,21 @@ export class ChecklistController {
   @Post('runs')
   createRun(@Body() dto: CreateRunDto, @Req() req: any) {
     return this.checklistService.createRun(dto, req.user);
+  }
+
+  @Get('maintenance/month')
+  maintenanceMonth(@Query('month') month: string, @Req() req?: any) {
+    return this.checklistService.maintenanceMonth(month, req?.user);
+  }
+
+  @Post('maintenance/runs')
+  createMaintenanceRun(@Body() dto: CreateMaintenanceRunDto, @Req() req: any) {
+    return this.checklistService.createMaintenanceRun(dto, req.user);
+  }
+
+  @Get('maintenance/annual')
+  maintenanceAnnualReport(@Query('year') year: string, @Req() req?: any) {
+    return this.checklistService.maintenanceAnnualReport(Number(year), req?.user);
   }
 
   @Get('report')

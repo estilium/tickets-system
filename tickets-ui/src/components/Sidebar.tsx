@@ -21,6 +21,7 @@ type IconName =
   | "flag"
   | "document-plus"
   | "document-check"
+  | "archive-box"
   | "cog-6-tooth"
   | "ellipsis-horizontal"
   | "ellipsis-vertical"
@@ -32,6 +33,7 @@ type NavItem = {
     | "sidebar.dashboard"
     | "sidebar.home"
     | "sidebar.tickets"
+    | "sidebar.inventory"
     | "sidebar.historicalReport"
     | "sidebar.checklist"
     | "sidebar.panel";
@@ -44,6 +46,7 @@ const navItems = [
   { to: "/", labelKey: "sidebar.dashboard", icon: "chart-pie", roles: ["AGENT", "ADMIN"] },
   { to: "/", labelKey: "sidebar.home", icon: "chart-pie", roles: ["REQUESTER", "CHECKLIST_MANAGER"] },
   { to: "/tickets", labelKey: "sidebar.tickets", icon: "flag", hiddenFor: ["CHECKLIST_MANAGER"] },
+  { to: "/inventory", labelKey: "sidebar.inventory", icon: "archive-box", roles: ["AGENT", "ADMIN"] },
   { to: "/tickets/new", labelKey: "sidebar.historicalReport", icon: "document-plus", roles: ["ADMIN"] },
   { to: "/checklist", labelKey: "sidebar.checklist", icon: "document-check", hiddenFor: ["REQUESTER"] },
   { to: "/users", labelKey: "sidebar.panel", icon: "cog-6-tooth", roles: ["ADMIN"] },
@@ -205,6 +208,15 @@ function SidebarIcon({ name }: { name: IconName }) {
       <svg {...commonProps}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 3.75H6.75A2.25 2.25 0 0 0 4.5 6v12a2.25 2.25 0 0 0 2.25 2.25h10.5A2.25 2.25 0 0 0 19.5 18V8.25L15 3.75h-4.5Z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M15 3.75v4.5h4.5M12 11.25v5.25M9.375 13.875h5.25" />
+      </svg>
+    );
+  }
+
+  if (name === "archive-box") {
+    return (
+      <svg {...commonProps}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 7.5h16.5M6 7.5v10.125A2.625 2.625 0 0 0 8.625 20.25h6.75A2.625 2.625 0 0 0 18 17.625V7.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 3.75h13.5l1.5 3.75H3.75l1.5-3.75ZM9.75 11.25h4.5" />
       </svg>
     );
   }

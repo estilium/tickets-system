@@ -38,7 +38,9 @@ model User {
   ticketsRequested Ticket[]
   messages         TicketMessage[]
   checklistRuns    ChecklistRun[]
+  maintenanceRuns  MaintenanceRun[]
   announcements    Announcement[]
+  inventoryEvents  InventoryEvent[]
 }
 
 model Ticket {
@@ -179,11 +181,132 @@ model ChecklistMachine {
   category    String?
   active      Boolean  @default(true)
   order       Int      @default(0)
+  maintenanceEnabled Boolean @default(false)
+  maintenanceFrequencyMonths Int @default(2)
+  maintenanceStartMonth Int?
+  maintenanceType String? @default("Preventivo")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   items ChecklistItem[]
   runs  ChecklistRun[]
+  maintenanceRuns MaintenanceRun[]
+  inventoryAssets InventoryAsset[]
+}
+
+enum AssetType {
+  DESKTOP
+  LAPTOP
+  AIO
+  MONITOR
+  PPC
+  PDA
+  PRINTER
+  ACCESSORY
+  OTHER
+}
+
+enum AssetStatus {
+  AVAILABLE
+  ASSIGNED
+  ACTIVE
+  MAINTENANCE
+  LOST
+  DISPOSED
+}
+
+enum AssetCondition {
+  GOOD
+  FAIR
+  DAMAGED
+  UNKNOWN
+}
+
+model InventoryAsset {
+  id          String         @id @default(uuid())
+  assetTag    String?        @unique
+  assetTypeId String?
+  assetType   InventoryAssetType? @relation(fields: [assetTypeId], references: [id], onDelete: SetNull)
+  type        AssetType      @default(OTHER)
+  status      AssetStatus    @default(AVAILABLE)
+  condition   AssetCondition @default(UNKNOWN)
+  department  String?
+  location    String?
+  assignedTo  String?
+  assignedEmail String?
+  brand       String?
+  model       String?
+  serialNumber String?       @unique
+  os          String?
+  ram         String?
+  ipAddress   String?
+  quantity    Int            @default(1)
+  notes       String?
+  customFields Json          @default("{}")
+  maintenanceEligible Boolean @default(false)
+  checklistMachineId String?
+  checklistMachine ChecklistMachine? @relation(fields: [checklistMachineId], references: [id], onDelete: SetNull)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  events InventoryEvent[]
+
+  @@index([type])
+  @@index([assetTypeId])
+  @@index([status])
+  @@index([department])
+  @@index([assignedTo])
+  @@index([checklistMachineId])
+}
+
+model InventoryAssetType {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  labelPrefix String   @unique
+  baseType    AssetType @default(OTHER)
+  description String?
+  criteria    Json     @default("[]")
+  active      Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assets InventoryAsset[]
+
+  @@index([active])
+  @@index([baseType])
+  @@index([order])
+}
+
+model InventoryBrand {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  appliesTo Json     @default("[]")
+  active    Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+  @@index([order])
+}
+
+model InventoryEvent {
+  id        String   @id @default(uuid())
+  assetId   String
+  asset     InventoryAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action    String
+  fromValue String?
+  toValue   String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([assetId])
+  @@index([actorId])
+  @@index([createdAt])
 }
 
 model ChecklistItem {
@@ -233,4 +356,28 @@ model ChecklistResponse {
 
   @@unique([runId, itemId])
   @@index([itemId])
+}
+
+enum MaintenanceStatus {
+  OK
+  NG
+}
+
+model MaintenanceRun {
+  id          String            @id @default(uuid())
+  machineId   String
+  machine     ChecklistMachine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  agentId     String
+  agent       User              @relation(fields: [agentId], references: [id])
+  year        Int
+  month       Int
+  status      MaintenanceStatus
+  observation String?
+  completedAt DateTime          @default(now())
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([machineId, year, month])
+  @@index([year, month])
+  @@index([agentId])
 }
