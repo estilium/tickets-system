@@ -54,6 +54,15 @@ El panel centraliza administracion y herramientas para reducir opciones visibles
 - Accion rapida `All OK` para marcar todos los puntos activos como correctos.
 - Administrador de checklist para crear, editar, duplicar, ordenar y desactivar maquinas e items.
 - Llenado historico de checklist desde herramientas administrativas.
+- Modulo de mantenimiento mensual:
+  - Seleccion de mes a trabajar.
+  - Conteo de programados, realizados, equipos con NG y porcentaje de cumplimiento.
+  - Captura de mantenimiento por equipo con estado `OK` o `NG`.
+  - Observacion requerida cuando el mantenimiento se marca como `NG`.
+- Reporte anual de mantenimiento:
+  - Vista por equipo y meses del ano.
+  - Estados `OK`, `NG`, `PRG` y `NA`.
+  - Totales y porcentaje anual por equipo.
 
 ### Inventario IT
 
