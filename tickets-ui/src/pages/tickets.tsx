@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/api";
 import { useSocketEvent } from "../hooks/useRealtime";
@@ -42,6 +42,9 @@ export default function Tickets() {
   const [showClosed, setShowClosed] = useState(true);
   const [filterYear, setFilterYear] = useState<string>("");
   const [filterMonth, setFilterMonth] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [totalTickets, setTotalTickets] = useState(0);
 
   // 🔥 modal state
   const [showModal, setShowModal] = useState(false);
@@ -53,8 +56,19 @@ export default function Tickets() {
 
   async function loadTickets() {
     try {
-      const res = await api.get("/tickets");
+      setLoading(true);
+      const res = await api.get("/tickets", {
+        params: {
+          page,
+          limit,
+          search: search || undefined,
+          showClosed,
+          year: filterYear || undefined,
+          month: filterMonth || undefined,
+        },
+      });
       setTickets(res.data.data);
+      setTotalTickets(res.data.meta?.total ?? res.data.data.length);
       setLoading(false);
     } catch (err) {
       console.error("❌ Error cargando tickets:", err);
@@ -82,12 +96,19 @@ export default function Tickets() {
   });
 
   useEffect(() => {
-    loadTickets();
     const rawUser = localStorage.getItem("user");
     if (rawUser) {
       setCurrentUser(JSON.parse(rawUser));
     }
   }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      loadTickets();
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [page, limit, search, showClosed, filterYear, filterMonth]);
 
 useEffect(() => {
   api.get("/categories").then(res => {
@@ -153,28 +174,15 @@ useEffect(() => {
   }, 200);
 };
 
-  const filteredTickets = tickets
-    .filter((t: any) => showClosed || t.status !== "CLOSED")
-    .filter((t: any) =>
-      t.title?.toLowerCase().includes(search.toLowerCase()) ||
-      t.description?.toLowerCase().includes(search.toLowerCase()) ||
-      t.assignedTo?.name?.toLowerCase().includes(search.toLowerCase())
-    )
-    .filter((t: any) => {
-      if (!filterYear && !filterMonth) return true;
-      const createdDate = new Date(t.createdAt);
-      const ticketYear = createdDate.getFullYear().toString();
-      const ticketMonth = (createdDate.getMonth() + 1).toString().padStart(2, "0");
-      
-      if (filterYear && ticketYear !== filterYear) return false;
-      if (filterMonth && ticketMonth !== filterMonth) return false;
-      return true;
-    });
+  const filteredTickets = tickets;
+  const totalPages = Math.max(1, Math.ceil(totalTickets / limit));
+  const rangeStart = totalTickets === 0 ? 0 : (page - 1) * limit + 1;
+  const rangeEnd = Math.min(page * limit, totalTickets);
 
-  // Get unique years from tickets
-  const availableYears = Array.from(
-    new Set(tickets.map((t: any) => new Date(t.createdAt).getFullYear().toString()))
-  ).sort().reverse();
+  const availableYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 8 }, (_, index) => (currentYear - index).toString());
+  }, []);
 
   if (loading) return <div>{t("common.loading")}</div>;
 
@@ -182,19 +190,19 @@ useEffect(() => {
       <div className="space-y-4">
 
 {/* HEADER */}
-<div className="flex justify-between items-center mb-4">
+<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
   <h1 className="text-xl font-semibold">{t("tickets.title")}</h1>
 
   {/* 🔥 BOTONES */}
-  <div className="flex gap-2">
+  <div className="flex flex-col gap-2 sm:flex-row">
 
     <button
       onClick={() => {
         setShowModal(true);
         setTimeout(() => setAnimate(true), 10);
       }}
-      className="bg-blue-600 hover:bg-blue-900 text-white px-4 py-2 rounded"
+      className="w-full rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-900 sm:w-auto"
     >
       {t("tickets.new")}
     </button>
@@ -202,7 +210,7 @@ useEffect(() => {
     {!currentUser?.role || currentUser.role !== "REQUESTER" ? (
       <Link
         to="/kanban"
-        className="bg-gray-700 hover:bg-gray-900 text-white px-4 py-2 rounded"
+        className="inline-flex w-full items-center justify-center rounded bg-gray-700 px-4 py-2 text-white hover:bg-gray-900 sm:w-auto"
       >
         {t("tickets.kanban")}
       </Link>
@@ -213,12 +221,15 @@ useEffect(() => {
 </div>
       {/* buscador y filtros */}
       <div className="flex flex-col gap-3 mb-4">
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="text"
             placeholder={t("tickets.search")}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="border rounded p-2 flex-1"
           />
           {(search || filterYear || filterMonth) && (
@@ -227,8 +238,9 @@ useEffect(() => {
                 setSearch("");
                 setFilterYear("");
                 setFilterMonth("");
+                setPage(1);
               }}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
+            className="rounded bg-gray-500 px-4 py-2 text-white hover:bg-gray-600"
             >
               {t("tickets.clearFilters")}
             </button>
@@ -241,6 +253,7 @@ useEffect(() => {
               onChange={(e) => {
                 setFilterYear(e.target.value);
                 setFilterMonth("");
+                setPage(1);
               }}
               className="border rounded p-2 text-sm"
             >
@@ -256,7 +269,10 @@ useEffect(() => {
           <div className="flex items-center gap-2">
             <select
               value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value)}
+              onChange={(e) => {
+                setFilterMonth(e.target.value);
+                setPage(1);
+              }}
               className="border rounded p-2 text-sm"
               disabled={!filterYear}
             >
@@ -280,7 +296,10 @@ useEffect(() => {
             <input
               type="checkbox"
               checked={showClosed}
-              onChange={() => setShowClosed((prev) => !prev)}
+              onChange={() => {
+                setShowClosed((prev) => !prev);
+                setPage(1);
+              }}
             />
             {t("tickets.showClosed")}
           </label>
@@ -288,13 +307,50 @@ useEffect(() => {
       </div>
 
       {/* cards */}
-      <div className="mb-4 text-sm text-gray-600">
-        <span className="font-semibold">
-          {filteredTickets.length} ticket{filteredTickets.length !== 1 ? 's' : ''} 
-        </span>
-        {filteredTickets.length !== tickets.length && (
-          <span> de {tickets.length} total</span>
-        )}
+      <div className="mb-4 flex flex-col gap-3 text-sm text-gray-600 md:flex-row md:items-center md:justify-between">
+        <div>
+          <span className="font-semibold">
+            {rangeStart}-{rangeEnd} de {totalTickets} ticket{totalTickets !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <label className="flex items-center gap-2">
+            <span>Mostrar</span>
+            <select
+              value={limit}
+              onChange={(e) => {
+                setLimit(Number(e.target.value));
+                setPage(1);
+              }}
+              className="rounded border p-2 text-sm"
+            >
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </label>
+
+          <button
+            type="button"
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            disabled={page <= 1}
+            className="rounded border px-3 py-2 font-semibold disabled:opacity-40"
+          >
+            Anterior
+          </button>
+          <span className="px-2 font-semibold text-gray-700">
+            {page} / {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={page >= totalPages}
+            className="rounded border px-3 py-2 font-semibold disabled:opacity-40"
+          >
+            Siguiente
+          </button>
+        </div>
       </div>
 
       {filteredTickets.length === 0 ? (
@@ -305,6 +361,7 @@ useEffect(() => {
               setSearch("");
               setFilterYear("");
               setFilterMonth("");
+              setPage(1);
             }}
             className="mt-2 text-blue-600 hover:underline"
           >
@@ -315,8 +372,8 @@ useEffect(() => {
         <>
           {filteredTickets.map((ticket: any) => (
         <Link key={ticket.id} to={`/tickets/${ticket.id}`} className={ticketCardClass(ticket.status)}>
-        <div className="flex justify-between items-center">
-            <div className="font-semibold text-lg">{ticket.title}</div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 break-words text-lg font-semibold">{ticket.title}</div>
             <StatusBadge status={ticket.status} />
        </div>
 
@@ -325,7 +382,7 @@ useEffect(() => {
 </div>
 
             {/* 🔥 INFO DEL TICKET */}
-            <div className="flex gap-4 mt-2 text-xs text-gray-500">
+            <div className="mt-2 flex flex-col gap-1 text-xs text-gray-500 sm:flex-row sm:gap-4">
 
               <div>
                 📍 {ticket.ticketLocation ?? "Sin ubicación"}
@@ -347,7 +404,7 @@ useEffect(() => {
               </div>
             </div>
 
-        <div className="flex justify-between items-center mt-3 text-sm">
+        <div className="mt-3 flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="text-gray-600">
               👤 {ticket.assignedTo?.name ?? "Unassigned"}
           </div>
@@ -362,11 +419,11 @@ useEffect(() => {
 
       {/* 🔥 MODAL (AHORA SÍ BIEN PUESTO) */}
       {showModal && (
-        <div className="fixed inset-0 bg-gray-900/20 bg-opacity-20 flex items-center justify-center z-50 transition-opacity duration-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/20 p-4 transition-opacity duration-300">
           
           <div
   className={`
-    bg-white p-6 rounded shadow w-[540px]
+    max-h-[calc(100vh-2rem)] w-full max-w-[540px] overflow-y-auto rounded bg-white p-4 shadow sm:p-6
     transform transition-all duration-300
     ${animate ? "scale-100 opacity-100" : "scale-90 opacity-0"}
   `}
@@ -442,11 +499,11 @@ useEffect(() => {
                 ))}
               </select>
                 
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               
               <button
                 onClick={handleCloseModal}
-                className="px-4 py-2 bg-gray-300 rounded"
+                className="rounded bg-gray-300 px-4 py-2"
               >
                 {t("common.cancel")}
               </button>
@@ -454,7 +511,7 @@ useEffect(() => {
               <button
                 onClick={handleCreate}
                 disabled={!title || !description || !ticketLocation || !categoryId}
-                className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+                className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
               >
                 {t("tickets.modal.create")}
               </button>

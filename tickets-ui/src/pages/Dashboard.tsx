@@ -54,11 +54,11 @@ export default function Dashboard() {
   );
 }
   return (
-    <div className="p-4 space-y-6">
+    <div className="space-y-6">
       <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
 
       {/* 🔹 Cards */}  
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card title="Total" value={data.total} />
         <Card title="Open" value={data.openTickets} color="border-blue-500" />
         <Card title="In Progress" value={data.inProgressTickets} color="border-yellow-500" />

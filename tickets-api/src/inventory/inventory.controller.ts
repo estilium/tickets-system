@@ -4,10 +4,12 @@ import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { CreateInventoryAssetDto } from './dto/create-inventory-asset.dto';
 import { CreateInventoryBulkDto } from './dto/create-inventory-bulk.dto';
 import { CreateInventoryAssetTypeDto } from './dto/create-inventory-asset-type.dto';
+import { CreateInventoryBaseCategoryDto } from './dto/create-inventory-base-category.dto';
 import { CreateInventoryBrandDto } from './dto/create-inventory-brand.dto';
 import { InventoryQueryDto } from './dto/inventory-query.dto';
 import { UpdateInventoryAssetDto } from './dto/update-inventory-asset.dto';
 import { UpdateInventoryAssetTypeDto } from './dto/update-inventory-asset-type.dto';
+import { UpdateInventoryBaseCategoryDto } from './dto/update-inventory-base-category.dto';
 import { UpdateInventoryBrandDto } from './dto/update-inventory-brand.dto';
 import { InventoryService } from './inventory.service';
 
@@ -41,6 +43,26 @@ export class InventoryController {
   @Get('brands')
   findBrands(@Query('includeInactive') includeInactive?: string) {
     return this.inventoryService.findBrands(includeInactive === 'true');
+  }
+
+  @Get('base-categories')
+  findBaseCategories(@Query('includeInactive') includeInactive?: string) {
+    return this.inventoryService.findBaseCategories(includeInactive === 'true');
+  }
+
+  @Post('base-categories')
+  createBaseCategory(@Body() dto: CreateInventoryBaseCategoryDto, @Req() req: any) {
+    return this.inventoryService.createBaseCategory(dto, req.user);
+  }
+
+  @Patch('base-categories/:id')
+  updateBaseCategory(@Param('id') id: string, @Body() dto: UpdateInventoryBaseCategoryDto, @Req() req: any) {
+    return this.inventoryService.updateBaseCategory(id, dto, req.user);
+  }
+
+  @Delete('base-categories/:id')
+  removeBaseCategory(@Param('id') id: string, @Req() req: any) {
+    return this.inventoryService.removeBaseCategory(id, req.user);
   }
 
   @Post('brands')

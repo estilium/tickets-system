@@ -264,6 +264,8 @@ model InventoryAssetType {
   code        String   @unique
   name        String
   labelPrefix String   @unique
+  baseCategoryId String?
+  baseCategory InventoryBaseCategory? @relation(fields: [baseCategoryId], references: [id], onDelete: SetNull)
   baseType    AssetType @default(OTHER)
   description String?
   criteria    Json     @default("[]")
@@ -275,7 +277,24 @@ model InventoryAssetType {
   assets InventoryAsset[]
 
   @@index([active])
+  @@index([baseCategoryId])
   @@index([baseType])
+  @@index([order])
+}
+
+model InventoryBaseCategory {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  legacyType  AssetType @default(OTHER)
+  active      Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assetTypes InventoryAssetType[]
+
+  @@index([active])
   @@index([order])
 }
 

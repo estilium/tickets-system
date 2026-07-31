@@ -79,11 +79,11 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`h-screen shrink-0 bg-slate-950 text-white flex flex-col border-r border-white/10 shadow-xl transition-[width] duration-300 ${
-        isCollapsed ? "w-20" : "w-64"
+      className={`fixed inset-x-0 bottom-0 z-40 flex h-16 shrink-0 flex-row bg-slate-950 text-white shadow-xl transition-[width] duration-300 md:static md:h-screen md:flex-col md:border-r md:border-white/10 ${
+        isCollapsed ? "md:w-20" : "md:w-64"
       }`}
     >
-      <div className={`flex items-center gap-3 px-4 py-5 ${isCollapsed ? "justify-center" : "justify-between"}`}>
+      <div className={`hidden items-center gap-3 px-4 py-5 md:flex ${isCollapsed ? "justify-center" : "justify-between"}`}>
         <div className="flex min-w-0 items-center gap-3">
           <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-blue-400/30 bg-blue-500/10 p-1.5">
             <img src={autotechLogo} alt="M Autotech" className="h-full w-full object-contain" />
@@ -112,7 +112,7 @@ export default function Sidebar() {
         <button
           type="button"
           onClick={() => setIsCollapsed(false)}
-          className="mx-auto mb-4 grid h-9 w-9 place-items-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white"
+          className="mx-auto mb-4 hidden h-9 w-9 place-items-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white md:grid"
           aria-label={t("sidebar.expand")}
           title={t("sidebar.expand")}
       >
@@ -120,7 +120,7 @@ export default function Sidebar() {
       </button>
       )}
 
-      <nav className="flex flex-1 flex-col gap-2 px-3 pt-4">
+      <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-2 py-2 md:flex-col md:items-stretch md:gap-2 md:overflow-visible md:px-3 md:pt-4">
         {visibleItems.map((item) => (
           <NavLink
             key={`${item.to}-${item.labelKey}`}
@@ -131,8 +131,8 @@ export default function Sidebar() {
               const isTicketsLinkOnHistory = item.to === "/tickets" && location.pathname === "/tickets/new";
               const active = isActive && !isTicketsLinkOnHistory;
 
-              return `flex h-11 items-center rounded-lg px-3 text-sm font-semibold transition ${
-                isCollapsed ? "justify-center" : "gap-3"
+              return `flex h-12 min-w-14 flex-1 items-center justify-center rounded-lg px-2 text-xs font-semibold transition md:h-11 md:min-w-0 md:flex-none md:px-3 md:text-sm ${
+                isCollapsed ? "md:justify-center" : "md:justify-start md:gap-3"
               } ${
                 active
                   ? "bg-blue-500/20 text-white ring-1 ring-blue-300/20"
@@ -143,24 +143,24 @@ export default function Sidebar() {
             <span className="grid h-7 min-w-7 place-items-center rounded-md bg-white/5 text-blue-200">
               <SidebarIcon name={item.icon} />
             </span>
-            {!isCollapsed && <span className="truncate">{t(item.labelKey)}</span>}
+            {!isCollapsed && <span className="hidden truncate md:inline">{t(item.labelKey)}</span>}
           </NavLink>
         ))}
       </nav>
 
-      <div className="mt-auto border-t border-white/10 p-3">
+      <div className="border-l border-white/10 p-2 md:mt-auto md:border-l-0 md:border-t md:p-3">
         <button
           type="button"
           onClick={logout}
-          className={`flex h-11 w-full items-center rounded-lg px-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/15 hover:text-red-100 ${
-            isCollapsed ? "justify-center" : "gap-3"
+          className={`flex h-12 w-12 items-center justify-center rounded-lg px-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/15 hover:text-red-100 md:h-11 md:w-full md:px-3 ${
+            isCollapsed ? "md:justify-center" : "md:justify-start md:gap-3"
           }`}
           title={isCollapsed ? t("sidebar.logout") : undefined}
         >
           <span className="grid h-7 min-w-7 place-items-center rounded-md bg-red-500/10">
             <SidebarIcon name="arrow-left-start-on-rectangle" />
           </span>
-          {!isCollapsed && <span>{t("sidebar.logout")}</span>}
+          {!isCollapsed && <span className="hidden md:inline">{t("sidebar.logout")}</span>}
         </button>
       </div>
     </aside>

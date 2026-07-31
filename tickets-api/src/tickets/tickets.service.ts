@@ -42,11 +42,30 @@ export class TicketsService {
       where.assignedToId = query.assignedToId;
     }
 
+    if (query.showClosed === 'false') {
+      where.status = { not: 'CLOSED' };
+    }
+
     if (query.search) {
       where.OR = [
         { title: { contains: query.search, mode: 'insensitive' } },
         { description: { contains: query.search, mode: 'insensitive' } },
+        { assignedTo: { is: { name: { contains: query.search, mode: 'insensitive' } } } },
       ];
+    }
+
+    if (query.year) {
+      const year = Number(query.year);
+      const month = query.month ? Number(query.month) - 1 : 0;
+      const start = new Date(Date.UTC(year, month, 1));
+      const end = query.month
+        ? new Date(Date.UTC(year, month + 1, 1))
+        : new Date(Date.UTC(year + 1, 0, 1));
+
+      where.createdAt = {
+        gte: start,
+        lt: end,
+      };
     }
 
     const [items, total] = await this.prisma.$transaction([

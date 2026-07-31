@@ -26,4 +26,19 @@ export class TicketQueryDto {
   @IsOptional()
   @IsString()
   assignedToId?: string;
+
+  @ApiPropertyOptional({ example: 'false' })
+  @IsOptional()
+  @IsString()
+  showClosed?: string;
+
+  @ApiPropertyOptional({ example: '2026' })
+  @IsOptional()
+  @IsString()
+  year?: string;
+
+  @ApiPropertyOptional({ example: '07' })
+  @IsOptional()
+  @IsString()
+  month?: string;
 }

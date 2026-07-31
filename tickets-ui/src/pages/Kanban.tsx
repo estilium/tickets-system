@@ -84,7 +84,7 @@ const handleDragEnd = async (event: any) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Kanban</h1>
 
         <Link
@@ -96,7 +96,7 @@ const handleDragEnd = async (event: any) => {
       </div>
 
       <DndContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Column title="Open" tickets={columns.OPEN} id="OPEN" />
         <Column title="In Progress" tickets={columns.IN_PROGRESS} id="IN_PROGRESS" />
         <Column title="Closed" tickets={columns.CLOSED} id="CLOSED" />
@@ -120,7 +120,7 @@ function Column({ title, tickets, id}: any) {
   return (
      <div
       ref={setNodeRef}
-      className={`rounded p-3 min-h-[500px] transition ${isOver ? "bg-blue-100" : "bg-gray-100"}`}
+      className={`min-h-[260px] rounded p-3 transition lg:min-h-[500px] ${isOver ? "bg-blue-100" : "bg-gray-100"}`}
     >
 
       <h2 className="font-semibold mb-3">{title}</h2>
@@ -157,9 +157,9 @@ function DraggableCard({ ticket }: any) {
       style={style}
       {...listeners}
       {...attributes}
-      className="bg-white p-3 rounded shadow cursor-grab active:cursor-grabbing"
+      className="cursor-grab rounded bg-white p-3 shadow active:cursor-grabbing"
     >
-      <div className="font-medium">{ticket.title}</div>
+      <div className="break-words font-medium">{ticket.title}</div>
 
       <div className="text-xs text-gray-500 mt-1">
         #{ticket.id.slice(0, 6)}

@@ -17,17 +17,17 @@ export default function Header() {
   }
 
   return (
-    <header className="h-16 border-b border-slate-200 bg-white/95 px-6 shadow-sm">
-      <div className="flex h-full items-center justify-between gap-4">
+    <header className="min-h-16 border-b border-slate-200 bg-white/95 px-3 py-3 shadow-sm sm:px-4 md:px-6">
+      <div className="flex h-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="truncate text-lg font-semibold text-slate-900">
+          <h1 className="line-clamp-2 text-base font-semibold text-slate-900 sm:truncate sm:text-lg">
             {t("header.welcome", { name: userName })}
           </h1>
         </div>
 
-        <div className="hidden items-center gap-3 sm:flex">
+        <div className="flex items-center gap-3">
           {userRole && (
-            <span className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-blue-700">
+            <span className="hidden rounded-lg border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-blue-700 sm:inline-flex">
               {userRole}
             </span>
           )}

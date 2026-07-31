@@ -4,10 +4,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateInventoryAssetDto } from './dto/create-inventory-asset.dto';
 import { CreateInventoryBulkDto } from './dto/create-inventory-bulk.dto';
 import { CreateInventoryAssetTypeDto } from './dto/create-inventory-asset-type.dto';
+import { CreateInventoryBaseCategoryDto } from './dto/create-inventory-base-category.dto';
 import { CreateInventoryBrandDto } from './dto/create-inventory-brand.dto';
 import { InventoryQueryDto } from './dto/inventory-query.dto';
 import { UpdateInventoryAssetDto } from './dto/update-inventory-asset.dto';
 import { UpdateInventoryAssetTypeDto } from './dto/update-inventory-asset-type.dto';
+import { UpdateInventoryBaseCategoryDto } from './dto/update-inventory-base-category.dto';
 import { UpdateInventoryBrandDto } from './dto/update-inventory-brand.dto';
 
 @Injectable()
@@ -37,7 +39,7 @@ export class InventoryService {
     return this.prisma.inventoryAsset.findMany({
       where,
       include: {
-        assetType: { select: { id: true, code: true, name: true, labelPrefix: true, criteria: true } },
+        assetType: { select: { id: true, code: true, name: true, labelPrefix: true, criteria: true, baseCategory: true } },
         checklistMachine: { select: { id: true, code: true, name: true, maintenanceEnabled: true } },
       },
       orderBy: [{ updatedAt: 'desc' }],
@@ -61,7 +63,7 @@ export class InventoryService {
       where: { id },
       include: {
         checklistMachine: { select: { id: true, code: true, name: true, maintenanceEnabled: true } },
-        assetType: { select: { id: true, code: true, name: true, labelPrefix: true, criteria: true } },
+        assetType: { select: { id: true, code: true, name: true, labelPrefix: true, criteria: true, baseCategory: true } },
         events: {
           include: { actor: { select: { id: true, name: true, email: true } } },
           orderBy: { createdAt: 'desc' },
@@ -124,9 +126,40 @@ export class InventoryService {
   async findTypes(includeInactive = false) {
     return this.prisma.inventoryAssetType.findMany({
       where: includeInactive ? undefined : { active: true },
-      include: { _count: { select: { assets: true } } },
+      include: { baseCategory: true, _count: { select: { assets: true } } },
       orderBy: [{ order: 'asc' }, { name: 'asc' }],
     });
+  }
+
+  async findBaseCategories(includeInactive = false) {
+    return this.prisma.inventoryBaseCategory.findMany({
+      where: includeInactive ? undefined : { active: true },
+      include: { _count: { select: { assetTypes: true } } },
+      orderBy: [{ order: 'asc' }, { name: 'asc' }],
+    });
+  }
+
+  async createBaseCategory(dto: CreateInventoryBaseCategoryDto, actor: any) {
+    this.ensureCanManage(actor);
+    const data = this.cleanBaseCategoryData(dto);
+    if (!data.code || !data.name) throw new BadRequestException('Codigo y nombre son obligatorios');
+    return this.prisma.inventoryBaseCategory.create({
+      data: data as Prisma.InventoryBaseCategoryUncheckedCreateInput,
+    });
+  }
+
+  async updateBaseCategory(id: string, dto: UpdateInventoryBaseCategoryDto, actor: any) {
+    this.ensureCanManage(actor);
+    const current = await this.prisma.inventoryBaseCategory.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('Categoria base no encontrada');
+    return this.prisma.inventoryBaseCategory.update({ where: { id }, data: this.cleanBaseCategoryData(dto) });
+  }
+
+  async removeBaseCategory(id: string, actor: any) {
+    this.ensureCanManage(actor);
+    const current = await this.prisma.inventoryBaseCategory.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('Categoria base no encontrada');
+    return this.prisma.inventoryBaseCategory.update({ where: { id }, data: { active: false } });
   }
 
   async previewLabels(assetTypeId: string, count: number) {
@@ -310,9 +343,20 @@ export class InventoryService {
     if (dto.code !== undefined) data.code = clean(dto.code)?.toUpperCase().replace(/\s+/g, '_');
     if (dto.name !== undefined) data.name = clean(dto.name);
     if (dto.labelPrefix !== undefined) data.labelPrefix = this.normalizeLabelPrefix(dto.labelPrefix);
+    if (dto.baseCategoryId !== undefined) data.baseCategoryId = clean(dto.baseCategoryId);
     if (dto.baseType !== undefined) data.baseType = dto.baseType;
     if (dto.description !== undefined) data.description = clean(dto.description);
     if (dto.criteria !== undefined) data.criteria = dto.criteria;
+    if (dto.active !== undefined) data.active = dto.active;
+    if (dto.order !== undefined) data.order = dto.order;
+    return data;
+  }
+
+  private cleanBaseCategoryData(dto: CreateInventoryBaseCategoryDto | UpdateInventoryBaseCategoryDto) {
+    const data: Record<string, any> = {};
+    if (dto.code !== undefined) data.code = dto.code.trim().toUpperCase().replace(/\s+/g, '_') || null;
+    if (dto.name !== undefined) data.name = dto.name.trim() || null;
+    if (dto.legacyType !== undefined) data.legacyType = dto.legacyType;
     if (dto.active !== undefined) data.active = dto.active;
     if (dto.order !== undefined) data.order = dto.order;
     return data;
@@ -335,14 +379,14 @@ export class InventoryService {
 
     const assetType = await this.prisma.inventoryAssetType.findUnique({
       where: { id: data.assetTypeId },
-      select: { baseType: true, active: true },
+      select: { baseType: true, active: true, baseCategory: { select: { legacyType: true, active: true } } },
     });
 
-    if (!assetType || !assetType.active) {
+    if (!assetType || !assetType.active || (assetType.baseCategory && !assetType.baseCategory.active)) {
       throw new BadRequestException('Tipo de activo no valido');
     }
 
-    data.type = assetType.baseType;
+    data.type = assetType.baseCategory?.legacyType ?? assetType.baseType;
   }
 
   private normalizeLabelPrefix(value?: string | null) {

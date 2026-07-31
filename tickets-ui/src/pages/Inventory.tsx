@@ -24,6 +24,8 @@ type InventoryAssetType = {
   code: string;
   name: string;
   labelPrefix: string;
+  baseCategoryId?: string | null;
+  baseCategory?: InventoryBaseCategory | null;
   baseType: AssetType;
   description?: string | null;
   criteria: CriteriaKey[];
@@ -32,10 +34,20 @@ type InventoryAssetType = {
   _count?: { assets: number };
 };
 
+type InventoryBaseCategory = {
+  id: string;
+  code: string;
+  name: string;
+  legacyType: AssetType;
+  active: boolean;
+  order: number;
+  _count?: { assetTypes: number };
+};
+
 type InventoryBrand = {
   id: string;
   name: string;
-  appliesTo: AssetType[];
+  appliesTo: string[];
   active: boolean;
   order: number;
 };
@@ -44,7 +56,7 @@ type InventoryAsset = {
   id: string;
   assetTag?: string | null;
   assetTypeId?: string | null;
-  assetType?: Pick<InventoryAssetType, "id" | "code" | "name" | "labelPrefix" | "criteria"> | null;
+  assetType?: Pick<InventoryAssetType, "id" | "code" | "name" | "labelPrefix" | "criteria" | "baseCategory"> | null;
   type: AssetType;
   status: AssetStatus;
   condition: AssetCondition;
@@ -89,6 +101,7 @@ type TypeForm = {
   code: string;
   name: string;
   labelPrefix: string;
+  baseCategoryId: string;
   baseType: AssetType;
   description: string;
   criteria: CriteriaKey[];
@@ -106,9 +119,22 @@ type BulkRow = {
 
 type BrandForm = {
   name: string;
-  appliesTo: AssetType[];
+  appliesTo: string[];
   active: boolean;
   order: number;
+};
+
+type BaseCategoryForm = {
+  code: string;
+  name: string;
+  legacyType: AssetType;
+  active: boolean;
+  order: number;
+};
+
+type CountRow = {
+  label: string;
+  value: number;
 };
 
 const defaultCriteria: CriteriaKey[] = ["assetTag", "serialNumber", "brandModel", "assignedTo", "department", "condition"];
@@ -138,6 +164,7 @@ const emptyTypeForm: TypeForm = {
   code: "",
   name: "",
   labelPrefix: "",
+  baseCategoryId: "",
   baseType: "OTHER",
   description: "",
   criteria: defaultCriteria,
@@ -156,6 +183,14 @@ const emptyBulkRow: BulkRow = {
 const emptyBrandForm: BrandForm = {
   name: "",
   appliesTo: [],
+  active: true,
+  order: 100,
+};
+
+const emptyBaseCategoryForm: BaseCategoryForm = {
+  code: "",
+  name: "",
+  legacyType: "OTHER",
   active: true,
   order: 100,
 };
@@ -207,13 +242,16 @@ const criteriaLabels: Record<CriteriaKey, { label: string; detail: string }> = {
 const managedRoles = ["ADMIN", "AGENT"];
 
 export default function Inventory() {
-  const [tab, setTab] = useState<"assets" | "types" | "brands">("assets");
+  const [tab, setTab] = useState<"assets" | "dashboard" | "types" | "brands" | "baseCategories">("assets");
+  const [showConfig, setShowConfig] = useState(false);
   const [assets, setAssets] = useState<InventoryAsset[]>([]);
   const [assetTypes, setAssetTypes] = useState<InventoryAssetType[]>([]);
+  const [baseCategories, setBaseCategories] = useState<InventoryBaseCategory[]>([]);
   const [brands, setBrands] = useState<InventoryBrand[]>([]);
   const [form, setForm] = useState<AssetForm>(emptyForm);
   const [typeForm, setTypeForm] = useState<TypeForm>(emptyTypeForm);
   const [brandForm, setBrandForm] = useState<BrandForm>(emptyBrandForm);
+  const [baseCategoryForm, setBaseCategoryForm] = useState<BaseCategoryForm>(emptyBaseCategoryForm);
   const [entryMode, setEntryMode] = useState<"single" | "bulk">("single");
   const [bulkCount, setBulkCount] = useState(10);
   const [bulkRows, setBulkRows] = useState<BulkRow[]>([]);
@@ -221,6 +259,7 @@ export default function Inventory() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
   const [editingBrandId, setEditingBrandId] = useState<string | null>(null);
+  const [editingBaseCategoryId, setEditingBaseCategoryId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [type, setType] = useState("");
@@ -241,11 +280,12 @@ export default function Inventory() {
 
   const canManage = managedRoles.includes(currentUser?.role ?? "");
   const selectedType = assetTypes.find((item) => item.id === form.assetTypeId) ?? null;
+  const selectedCategory = selectedType?.baseCategory ?? baseCategories.find((item) => item.legacyType === selectedType?.baseType) ?? null;
   const visibleCriteria = selectedType?.criteria?.length ? selectedType.criteria : defaultCriteria;
   const availableBrands = brands.filter((brand) => {
     if (!brand.active) return false;
-    if (!selectedType) return true;
-    return brand.appliesTo.length === 0 || brand.appliesTo.includes(selectedType.baseType);
+    if (!selectedCategory) return true;
+    return brand.appliesTo.length === 0 || brand.appliesTo.includes(selectedCategory.code);
   });
 
   const totals = useMemo(() => {
@@ -257,12 +297,28 @@ export default function Inventory() {
     };
   }, [assets]);
 
+  const dashboardRows = useMemo(() => {
+    const categoryNameByCode = new Map(baseCategories.map((category) => [category.code, category.name]));
+    const categoryNameByLegacy = new Map(baseCategories.map((category) => [category.legacyType, category.name]));
+    const typeNameById = new Map(assetTypes.map((assetType) => [assetType.id, assetType.name]));
+
+    return {
+      brands: groupCounts(assets.map((asset) => asset.brand || "Sin marca")),
+      types: groupCounts(assets.map((asset) => asset.assetTypeId ? typeNameById.get(asset.assetTypeId) || "Sin tipo" : "Sin tipo")),
+      categories: groupCounts(assets.map((asset) => {
+        const assetType = assetTypes.find((item) => item.id === asset.assetTypeId);
+        return assetType?.baseCategory?.name || categoryNameByCode.get(assetType?.baseCategory?.code ?? "") || categoryNameByLegacy.get(asset.type) || typeLabels[asset.type];
+      })),
+      statuses: groupCounts(assets.map((asset) => statusLabels[asset.status])),
+    };
+  }, [assets, assetTypes, baseCategories]);
+
   useEffect(() => {
     loadAll();
   }, []);
 
   async function loadAll() {
-    await Promise.all([loadTypes(), loadBrands(), loadAssets()]);
+    await Promise.all([loadTypes(), loadBaseCategories(), loadBrands(), loadAssets()]);
   }
 
   async function loadAssets(params = { search, status, type }) {
@@ -295,6 +351,11 @@ export default function Inventory() {
     setBrands(res.data);
   }
 
+  async function loadBaseCategories() {
+    const res = await api.get("/inventory/base-categories", { params: { includeInactive: true } });
+    setBaseCategories(res.data);
+  }
+
   function updateField<K extends keyof AssetForm>(field: K, value: AssetForm[K]) {
     setForm((current) => ({ ...current, [field]: value }));
   }
@@ -307,12 +368,16 @@ export default function Inventory() {
     setBrandForm((current) => ({ ...current, [field]: value }));
   }
 
-  function toggleBrandType(baseType: AssetType) {
+  function updateBaseCategoryField<K extends keyof BaseCategoryForm>(field: K, value: BaseCategoryForm[K]) {
+    setBaseCategoryForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function toggleBrandCategory(categoryCode: string) {
     setBrandForm((current) => ({
       ...current,
-      appliesTo: current.appliesTo.includes(baseType)
-        ? current.appliesTo.filter((item) => item !== baseType)
-        : [...current.appliesTo, baseType],
+      appliesTo: current.appliesTo.includes(categoryCode)
+        ? current.appliesTo.filter((item) => item !== categoryCode)
+        : [...current.appliesTo, categoryCode],
     }));
   }
 
@@ -328,13 +393,14 @@ export default function Inventory() {
 
   function selectAssetType(assetTypeId: string) {
     const nextType = assetTypes.find((item) => item.id === assetTypeId);
+    const nextCategory = nextType?.baseCategory ?? null;
     setForm((current) => ({
       ...current,
       assetTypeId,
-      type: nextType?.baseType ?? current.type,
-      brand: nextType && current.brand && !brands.some((brand) => brand.active && brand.name === current.brand && (brand.appliesTo.length === 0 || brand.appliesTo.includes(nextType.baseType))) ? "" : current.brand,
+      type: nextCategory?.legacyType ?? nextType?.baseType ?? current.type,
+      brand: nextCategory && current.brand && !brands.some((brand) => brand.active && brand.name === current.brand && (brand.appliesTo.length === 0 || brand.appliesTo.includes(nextCategory.code))) ? "" : current.brand,
       maintenanceEligible: nextType?.criteria?.includes("maintenance") ?? current.maintenanceEligible,
-      os: nextType?.baseType === "AIO" || nextType?.baseType === "DESKTOP" || nextType?.baseType === "LAPTOP" ? current.os || "Windows 11" : current.os,
+      os: (nextCategory?.legacyType ?? nextType?.baseType) === "AIO" || (nextCategory?.legacyType ?? nextType?.baseType) === "DESKTOP" || (nextCategory?.legacyType ?? nextType?.baseType) === "LAPTOP" ? current.os || "Windows 11" : current.os,
     }));
     setPreviewLabels([]);
   }
@@ -542,12 +608,72 @@ export default function Inventory() {
       code: assetType.code,
       name: assetType.name,
       labelPrefix: assetType.labelPrefix,
+      baseCategoryId: assetType.baseCategoryId ?? "",
       baseType: assetType.baseType,
       description: assetType.description ?? "",
       criteria: assetType.criteria ?? defaultCriteria,
       active: assetType.active,
       order: assetType.order,
     });
+  }
+
+  function editBaseCategory(category: InventoryBaseCategory) {
+    setEditingBaseCategoryId(category.id);
+    setBaseCategoryForm({
+      code: category.code,
+      name: category.name,
+      legacyType: category.legacyType,
+      active: category.active,
+      order: category.order,
+    });
+  }
+
+  async function saveBaseCategory(event: React.FormEvent) {
+    event.preventDefault();
+    if (!canManage) return;
+    if (!baseCategoryForm.code.trim() || !baseCategoryForm.name.trim()) {
+      setError("Codigo y nombre de categoria son obligatorios");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setInfo("");
+    try {
+      const payload = {
+        ...baseCategoryForm,
+        order: editingBaseCategoryId ? Number(baseCategoryForm.order) || 100 : (baseCategories.length + 1) * 10,
+      };
+      if (editingBaseCategoryId) {
+        await api.patch(`/inventory/base-categories/${editingBaseCategoryId}`, payload);
+        setInfo("Categoria base actualizada");
+      } else {
+        await api.post("/inventory/base-categories", payload);
+        setInfo("Categoria base agregada");
+      }
+      setBaseCategoryForm(emptyBaseCategoryForm);
+      setEditingBaseCategoryId(null);
+      await loadBaseCategories();
+      await loadTypes();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.message || "No se pudo guardar la categoria base");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deactivateBaseCategory(category: InventoryBaseCategory) {
+    const confirmed = window.confirm(`Desactivar categoria ${category.name}?`);
+    if (!confirmed) return;
+    try {
+      await api.delete(`/inventory/base-categories/${category.id}`);
+      await loadBaseCategories();
+      await loadTypes();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.message || "No se pudo desactivar la categoria base");
+    }
   }
 
   async function deactivateType(assetType: InventoryAssetType) {
@@ -617,6 +743,12 @@ export default function Inventory() {
     setError("");
   }
 
+  function clearBaseCategoryForm() {
+    setBaseCategoryForm(emptyBaseCategoryForm);
+    setEditingBaseCategoryId(null);
+    setError("");
+  }
+
   function toggleCriteria(criteria: CriteriaKey) {
     setTypeForm((current) => ({
       ...current,
@@ -641,10 +773,31 @@ export default function Inventory() {
         </div>
       </div>
 
-      <div className="mb-4 flex gap-2">
-        <TabButton active={tab === "assets"} onClick={() => setTab("assets")}>Activos</TabButton>
-        <TabButton active={tab === "types"} onClick={() => setTab("types")}>Tipos y criterios</TabButton>
-        <TabButton active={tab === "brands"} onClick={() => setTab("brands")}>Marcas</TabButton>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-2">
+          <TabButton active={tab === "assets"} onClick={() => setTab("assets")}>Activos</TabButton>
+          <TabButton active={tab === "dashboard"} onClick={() => setTab("dashboard")}>
+            <span className="inline-flex items-center gap-2"><ChartIcon />Dashboard</span>
+          </TabButton>
+        </div>
+        <div className="relative flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowConfig((current) => !current)}
+            className={`grid h-10 w-10 place-items-center rounded border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 ${showConfig ? "ring-2 ring-blue-100" : ""}`}
+            title="Configuracion"
+            aria-label="Configuracion de inventario"
+          >
+            <GearIcon />
+          </button>
+          {showConfig && (
+            <div className="absolute right-0 top-12 z-10 flex min-w-[260px] flex-col gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-lg sm:flex-row sm:min-w-0">
+              <ConfigButton active={tab === "types"} onClick={() => { setTab("types"); setShowConfig(false); }}>Criterios</ConfigButton>
+              <ConfigButton active={tab === "brands"} onClick={() => { setTab("brands"); setShowConfig(false); }}>Marcas</ConfigButton>
+              <ConfigButton active={tab === "baseCategories"} onClick={() => { setTab("baseCategories"); setShowConfig(false); }}>Categorias</ConfigButton>
+            </div>
+          )}
+        </div>
       </div>
 
       {error && <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -696,7 +849,7 @@ export default function Inventory() {
                 </select>
                 {selectedType && (
                   <p className="text-xs font-semibold text-slate-500">
-                    Categoria base: {typeLabels[selectedType.baseType]}
+                    Categoria base: {selectedCategory?.name ?? typeLabels[selectedType.baseType]}
                   </p>
                 )}
               </Field>
@@ -725,7 +878,7 @@ export default function Inventory() {
                     ))}
                   </select>
                   {selectedType && availableBrands.length === 0 && (
-                    <p className="text-xs font-semibold text-slate-500">No hay marcas para {typeLabels[selectedType.baseType]}.</p>
+                    <p className="text-xs font-semibold text-slate-500">No hay marcas para {selectedCategory?.name ?? typeLabels[selectedType.baseType]}.</p>
                   )}
                 </Field>
               )}
@@ -820,6 +973,8 @@ export default function Inventory() {
           <AssetFilters search={search} setSearch={setSearch} type={type} setType={setType} status={status} setStatus={setStatus} loadAssets={() => loadAssets()} />
           <AssetTable assets={assets} loading={loading} canManage={canManage} editAsset={editAsset} disposeAsset={disposeAsset} />
         </>
+      ) : tab === "dashboard" ? (
+        <InventoryDashboard rows={dashboardRows} totals={totals} />
       ) : tab === "types" ? (
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
           <form onSubmit={saveType} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -843,8 +998,19 @@ export default function Inventory() {
                 </p>
               </Field>
               <Field label="Categoria base">
-                <select value={typeForm.baseType} onChange={(e) => updateTypeField("baseType", e.target.value as AssetType)} className="input">
-                  {Object.entries(typeLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                <select
+                  value={typeForm.baseCategoryId}
+                  onChange={(e) => {
+                    const category = baseCategories.find((item) => item.id === e.target.value);
+                    updateTypeField("baseCategoryId", e.target.value);
+                    updateTypeField("baseType", category?.legacyType ?? "OTHER");
+                  }}
+                  className="input"
+                >
+                  <option value="">Selecciona categoria</option>
+                  {baseCategories.filter((category) => category.active).map((category) => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
+                  ))}
                 </select>
               </Field>
               <Field label="Descripcion"><input value={typeForm.description} onChange={(e) => updateTypeField("description", e.target.value)} placeholder="Para que se usa este tipo" className="input" /></Field>
@@ -881,7 +1047,7 @@ export default function Inventory() {
                     <div>
                       <p className="font-bold text-slate-950">{assetType.name}</p>
                       <p className="text-xs text-slate-500">
-                        {assetType.code} - {typeLabels[assetType.baseType]} - MXMAU-IT-{assetType.labelPrefix}-### - {assetType._count?.assets ?? 0} activos
+                        {assetType.code} - {assetType.baseCategory?.name ?? typeLabels[assetType.baseType]} - MXMAU-IT-{assetType.labelPrefix}-### - {assetType._count?.assets ?? 0} activos
                       </p>
                       {assetType.description && <p className="mt-1 text-sm text-slate-600">{assetType.description}</p>}
                     </div>
@@ -901,7 +1067,7 @@ export default function Inventory() {
             </div>
           </div>
         </div>
-      ) : (
+      ) : tab === "brands" ? (
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
           <form onSubmit={saveBrand} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
@@ -916,15 +1082,15 @@ export default function Inventory() {
             <div className="mt-4">
               <p className="mb-2 text-sm font-semibold text-slate-700">Aplica para</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {(Object.keys(typeLabels) as AssetType[]).map((baseType) => (
-                  <label key={baseType} className="flex items-center gap-2 rounded border border-slate-200 p-2 text-sm hover:bg-slate-50">
+                {baseCategories.filter((category) => category.active).map((category) => (
+                  <label key={category.id} className="flex items-center gap-2 rounded border border-slate-200 p-2 text-sm hover:bg-slate-50">
                     <input
                       type="checkbox"
-                      checked={brandForm.appliesTo.includes(baseType)}
-                      onChange={() => toggleBrandType(baseType)}
+                      checked={brandForm.appliesTo.includes(category.code)}
+                      onChange={() => toggleBrandCategory(category.code)}
                       className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="font-semibold text-slate-700">{typeLabels[baseType]}</span>
+                    <span className="font-semibold text-slate-700">{category.name}</span>
                   </label>
                 ))}
               </div>
@@ -948,7 +1114,9 @@ export default function Inventory() {
                     <p className="font-bold text-slate-950">{brand.name}</p>
                     <p className="text-xs text-slate-500">{brand.active ? "Activa" : "Inactiva"}</p>
                     <p className="text-xs text-slate-500">
-                      {brand.appliesTo.length ? brand.appliesTo.map((item) => typeLabels[item]).join(", ") : "Todas las categorias"}
+                      {brand.appliesTo.length
+                        ? brand.appliesTo.map((item) => baseCategories.find((category) => category.code === item)?.name ?? item).join(", ")
+                        : "Todas las categorias"}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -958,6 +1126,53 @@ export default function Inventory() {
                 </div>
               ))}
               {brands.length === 0 && <p className="rounded border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">Sin marcas configuradas.</p>}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+          <form onSubmit={saveBaseCategory} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-950">{editingBaseCategoryId ? "Editar categoria" : "Nueva categoria"}</h3>
+              {editingBaseCategoryId && <button type="button" onClick={clearBaseCategoryForm} className="rounded border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700">Cancelar</button>}
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              <Field label="Codigo">
+                <input value={baseCategoryForm.code} onChange={(e) => updateBaseCategoryField("code", e.target.value.toUpperCase().replace(/\s+/g, "_"))} placeholder="SWITCH" className="input" />
+              </Field>
+              <Field label="Nombre">
+                <input value={baseCategoryForm.name} onChange={(e) => updateBaseCategoryField("name", e.target.value)} placeholder="Switch" className="input" />
+              </Field>
+              <Field label="Respaldo tecnico">
+                <select value={baseCategoryForm.legacyType} onChange={(e) => updateBaseCategoryField("legacyType", e.target.value as AssetType)} className="input">
+                  {Object.entries(typeLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                </select>
+              </Field>
+            </div>
+            <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <input type="checkbox" checked={baseCategoryForm.active} onChange={(e) => updateBaseCategoryField("active", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+              Activa
+            </label>
+            <button type="submit" disabled={!canManage || saving} className="mt-4 h-10 w-full rounded bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+              {saving ? "Guardando..." : editingBaseCategoryId ? "Guardar categoria" : "Agregar categoria"}
+            </button>
+          </form>
+
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <h3 className="mb-3 text-lg font-semibold text-slate-950">Categorias base configuradas</h3>
+            <div className="space-y-2">
+              {baseCategories.map((category) => (
+                <div key={category.id} className="flex flex-col gap-3 rounded border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-bold text-slate-950">{category.name}</p>
+                    <p className="text-xs text-slate-500">{category.code} - {category.active ? "Activa" : "Inactiva"} - {category._count?.assetTypes ?? 0} tipos</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => editBaseCategory(category)} disabled={!canManage} className="rounded border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Editar</button>
+                    <button type="button" onClick={() => deactivateBaseCategory(category)} disabled={!canManage || !category.active} className="rounded bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">Desactivar</button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -1003,6 +1218,8 @@ function AssetTable({ assets, loading, canManage, editAsset, disposeAsset }: {
   editAsset: (asset: InventoryAsset) => void;
   disposeAsset: (asset: InventoryAsset) => void;
 }) {
+  const [expandedAssetId, setExpandedAssetId] = useState<string | null>(null);
+
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       {loading ? (
@@ -1010,53 +1227,128 @@ function AssetTable({ assets, loading, canManage, editAsset, disposeAsset }: {
       ) : assets.length === 0 ? (
         <p className="p-8 text-center text-sm text-slate-500">Sin activos con esos filtros.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-100 text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-bold uppercase text-slate-500">
-              <tr>
-                <th className="px-4 py-3">Activo</th>
-                <th className="px-4 py-3">Asignacion</th>
-                <th className="px-4 py-3">Equipo</th>
-                <th className="px-4 py-3">Red</th>
-                <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {assets.map((asset) => (
-                <tr key={asset.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3">
-                    <p className="font-bold text-slate-950">{asset.assetTag || asset.serialNumber || "Sin etiqueta"}</p>
-                    <p className="text-xs text-slate-500">{asset.assetType?.name || typeLabels[asset.type]} - Cant. {asset.quantity}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="font-semibold text-slate-800">{asset.assignedTo || "Sin asignar"}</p>
-                    <p className="text-xs text-slate-500">{asset.department || asset.location || "Sin area"}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="text-slate-800">{[asset.brand, asset.model].filter(Boolean).join(" ") || "Sin modelo"}</p>
-                    <p className="text-xs text-slate-500">{asset.serialNumber || "Sin serie"}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="text-slate-800">{asset.ipAddress || "-"}</p>
-                    <p className="text-xs text-slate-500">{[asset.os, asset.ram].filter(Boolean).join(" / ") || "-"}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded px-2 py-1 text-xs font-bold ${statusClass(asset.status)}`}>{statusLabels[asset.status]}</span>
-                    {asset.maintenanceEligible && <p className="mt-1 text-xs font-semibold text-blue-700">Candidato mtto</p>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      <button type="button" onClick={() => editAsset(asset)} disabled={!canManage} className="rounded border border-slate-200 px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Editar</button>
-                      <button type="button" onClick={() => disposeAsset(asset)} disabled={!canManage || asset.status === "DISPOSED"} className="rounded bg-red-600 px-3 py-1.5 font-semibold text-white hover:bg-red-700 disabled:opacity-50">Baja</button>
+        <>
+          <div className="divide-y divide-slate-100 md:hidden">
+            {assets.map((asset) => {
+              const expanded = expandedAssetId === asset.id;
+              const title = asset.assetTag || asset.serialNumber || "Sin etiqueta";
+              const equipment = [asset.brand, asset.model].filter(Boolean).join(" ") || "Sin modelo";
+
+              return (
+                <article key={asset.id} className="p-4">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedAssetId(expanded ? null : asset.id)}
+                    className="w-full text-left"
+                    aria-expanded={expanded}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="break-words font-bold text-slate-950">{title}</p>
+                        <p className="text-sm text-slate-600">{asset.assetType?.name || typeLabels[asset.type]}</p>
+                        <p className="mt-1 break-words text-xs text-slate-500">{equipment}</p>
+                      </div>
+                      <span className={`shrink-0 rounded px-2 py-1 text-xs font-bold ${statusClass(asset.status)}`}>
+                        {statusLabels[asset.status]}
+                      </span>
                     </div>
-                  </td>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500">
+                      <p><span className="font-semibold text-slate-700">Usuario:</span> {asset.assignedTo || "Sin asignar"}</p>
+                      <p><span className="font-semibold text-slate-700">Area:</span> {asset.department || asset.location || "-"}</p>
+                    </div>
+                    <p className="mt-3 text-xs font-semibold text-blue-700">
+                      {expanded ? "Ocultar detalle" : "Ver detalle"}
+                    </p>
+                  </button>
+
+                  {expanded && (
+                    <div className="mt-4 space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div className="grid grid-cols-1 gap-3 text-sm">
+                        <AssetDetail label="Etiqueta" value={asset.assetTag || "-"} />
+                        <AssetDetail label="Serie" value={asset.serialNumber || "-"} />
+                        <AssetDetail label="Equipo" value={equipment} />
+                        <AssetDetail label="Categoria" value={asset.assetType?.name || typeLabels[asset.type]} />
+                        <AssetDetail label="Usuario" value={asset.assignedTo || "Sin asignar"} />
+                        <AssetDetail label="Correo" value={asset.assignedEmail || "-"} />
+                        <AssetDetail label="Departamento" value={asset.department || "-"} />
+                        <AssetDetail label="Ubicacion" value={asset.location || "-"} />
+                        <AssetDetail label="IP" value={asset.ipAddress || "-"} />
+                        <AssetDetail label="Sistema / RAM" value={[asset.os, asset.ram].filter(Boolean).join(" / ") || "-"} />
+                        <AssetDetail label="Condicion" value={conditionLabels[asset.condition]} />
+                        <AssetDetail label="Cantidad" value={String(asset.quantity)} />
+                        <AssetDetail label="Notas" value={asset.notes || "-"} />
+                      </div>
+                      {asset.maintenanceEligible && (
+                        <p className="rounded bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">Candidato a mantenimiento</p>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <button type="button" onClick={() => editAsset(asset)} disabled={!canManage} className="rounded border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50">Editar</button>
+                        <button type="button" onClick={() => disposeAsset(asset)} disabled={!canManage || asset.status === "DISPOSED"} className="rounded bg-red-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Baja</button>
+                      </div>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
+            <table className="min-w-full divide-y divide-slate-100 text-sm">
+              <thead className="bg-slate-50 text-left text-xs font-bold uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Activo</th>
+                  <th className="px-4 py-3">Asignacion</th>
+                  <th className="px-4 py-3">Equipo</th>
+                  <th className="px-4 py-3">Red</th>
+                  <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3 text-right">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {assets.map((asset) => (
+                  <tr key={asset.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                      <p className="font-bold text-slate-950">{asset.assetTag || asset.serialNumber || "Sin etiqueta"}</p>
+                      <p className="text-xs text-slate-500">{asset.assetType?.name || typeLabels[asset.type]} - Cant. {asset.quantity}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-slate-800">{asset.assignedTo || "Sin asignar"}</p>
+                      <p className="text-xs text-slate-500">{asset.department || asset.location || "Sin area"}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-slate-800">{[asset.brand, asset.model].filter(Boolean).join(" ") || "Sin modelo"}</p>
+                      <p className="text-xs text-slate-500">{asset.serialNumber || "Sin serie"}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-slate-800">{asset.ipAddress || "-"}</p>
+                      <p className="text-xs text-slate-500">{[asset.os, asset.ram].filter(Boolean).join(" / ") || "-"}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded px-2 py-1 text-xs font-bold ${statusClass(asset.status)}`}>{statusLabels[asset.status]}</span>
+                      {asset.maintenanceEligible && <p className="mt-1 text-xs font-semibold text-blue-700">Candidato mtto</p>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => editAsset(asset)} disabled={!canManage} className="rounded border border-slate-200 px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Editar</button>
+                        <button type="button" onClick={() => disposeAsset(asset)} disabled={!canManage || asset.status === "DISPOSED"} className="rounded bg-red-600 px-3 py-1.5 font-semibold text-white hover:bg-red-700 disabled:opacity-50">Baja</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
+    </div>
+  );
+}
+
+function AssetDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
+      <p className="break-words text-slate-800">{value}</p>
     </div>
   );
 }
@@ -1079,12 +1371,83 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
+function InventoryDashboard({ rows, totals }: {
+  rows: { brands: CountRow[]; types: CountRow[]; categories: CountRow[]; statuses: CountRow[] };
+  totals: { total: number; assigned: number; maintenance: number; available: number };
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Metric label="Equipos" value={totals.total} />
+        <Metric label="Asignados" value={totals.assigned} />
+        <Metric label="Disponibles" value={totals.available} />
+        <Metric label="Mtto" value={totals.maintenance} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <BarList title="Marcas" rows={rows.brands} />
+        <BarList title="Tipos de equipo" rows={rows.types} />
+        <BarList title="Categorias base" rows={rows.categories} />
+        <BarList title="Estados" rows={rows.statuses} />
+      </div>
+    </div>
+  );
+}
+
+function BarList({ title, rows }: { title: string; rows: CountRow[] }) {
+  const max = Math.max(...rows.map((row) => row.value), 1);
+  const visibleRows = rows.slice(0, 8);
+
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-base font-bold text-slate-950">{title}</h3>
+        <span className="text-xs font-semibold text-slate-500">{rows.length} grupos</span>
+      </div>
+      <div className="space-y-3">
+        {visibleRows.map((row) => (
+          <div key={row.label} className="space-y-1">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="min-w-0 truncate font-semibold text-slate-700">{row.label}</span>
+              <span className="shrink-0 font-bold text-slate-950">{row.value}</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded bg-slate-100">
+              <div className="h-full rounded bg-blue-600" style={{ width: `${Math.max(8, (row.value / max) * 100)}%` }} />
+            </div>
+          </div>
+        ))}
+        {visibleRows.length === 0 && <p className="rounded border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">Sin informacion para graficar.</p>}
+      </div>
+    </section>
+  );
+}
+
 function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" onClick={onClick} className={`h-10 rounded px-4 text-sm font-semibold transition ${active ? "bg-slate-950 text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}>
       {children}
     </button>
   );
+}
+
+function ConfigButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} className={`h-9 rounded px-3 text-sm font-semibold transition ${active ? "bg-blue-600 text-white" : "text-slate-700 hover:bg-slate-50"}`}>
+      {children}
+    </button>
+  );
+}
+
+function groupCounts(values: string[]) {
+  const counts = values.reduce<Record<string, number>>((acc, value) => {
+    const label = value.trim() || "Sin definir";
+    acc[label] = (acc[label] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  return Object.entries(counts)
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
 }
 
 function statusClass(status: AssetStatus) {
@@ -1107,6 +1470,24 @@ function SearchIcon() {
   return (
     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.3-4.3M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z" />
+    </svg>
+  );
+}
+
+function GearIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z" />
+    </svg>
+  );
+}
+
+function ChartIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 19V5M4 19h16" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 16v-5M12 16V8M16 16v-7" />
     </svg>
   );
 }

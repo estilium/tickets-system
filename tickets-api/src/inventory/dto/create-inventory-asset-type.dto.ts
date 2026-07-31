@@ -20,6 +20,10 @@ export class CreateInventoryAssetTypeDto {
 
   @IsOptional()
   @IsString()
+  baseCategoryId?: string;
+
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @IsOptional()

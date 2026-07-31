@@ -309,6 +309,20 @@ export default function Checklist() {
     }));
   }
 
+  function setAllItemsOk() {
+    setResponses((current) => {
+      const next = { ...current };
+      sortedItems.forEach((item) => {
+        next[item.id] = {
+          status: "OK",
+          observation: "",
+        };
+      });
+      return next;
+    });
+    setError("");
+  }
+
   async function saveRun() {
     if (!selectedMachine) return;
 
@@ -445,7 +459,28 @@ export default function Checklist() {
                   {selectedArea ? "No hay máquinas en esta área." : "No hay máquinas activas para checklist."}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                <>
+                <div className="xl:hidden">
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    Seleccionar maquina
+                  </label>
+                  <select
+                    value={selectedMachineId}
+                    onChange={(event) => setSelectedMachineId(event.target.value)}
+                    className="h-12 w-full rounded border border-gray-200 px-3 text-base"
+                  >
+                    <option value="">Selecciona una maquina</option>
+                    {filteredMachines.map((machine) => {
+                      const state = getMachineState(machine);
+                      return (
+                        <option key={machine.id} value={machine.id}>
+                          {machine.code} - {machine.name} ({state.label})
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div className="mt-3 hidden grid-cols-1 gap-2 xl:grid">
                   {filteredMachines.map((machine) => {
                     const state = getMachineState(machine);
                     return (
@@ -467,6 +502,7 @@ export default function Checklist() {
                     );
                   })}
                 </div>
+                </>
               )}
             </div>
 
@@ -491,13 +527,24 @@ export default function Checklist() {
                         {selectedRun ? " · Ya existe captura para este turno" : ""}
                       </p>
                     </div>
-                    <button
-                      onClick={saveRun}
-                      disabled={saving}
-                      className="h-12 rounded bg-green-600 px-6 font-bold text-white hover:bg-green-700 disabled:opacity-60"
-                    >
-                      {saving ? "Guardando..." : selectedRun ? "Actualizar checklist" : "Guardar checklist"}
-                    </button>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={setAllItemsOk}
+                        disabled={saving || sortedItems.length === 0}
+                        className="h-12 rounded border border-green-200 bg-green-50 px-5 font-bold text-green-700 hover:bg-green-100 disabled:opacity-60"
+                      >
+                        All OK
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveRun}
+                        disabled={saving}
+                        className="h-12 rounded bg-green-600 px-6 font-bold text-white hover:bg-green-700 disabled:opacity-60"
+                      >
+                        {saving ? "Guardando..." : selectedRun ? "Actualizar checklist" : "Guardar checklist"}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-3">
