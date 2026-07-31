@@ -12,6 +12,7 @@ Aplicacion web fullstack para gestion de tickets de soporte, checklist operativo
 - Asignacion de tickets a usuarios con rol `AGENT` o `ADMIN`.
 - Cierre de tickets y control de permisos por rol.
 - Filtros por busqueda, ano, mes y tickets cerrados.
+- Paginacion de tickets con selector de cantidad por pagina.
 - Actualizacion en vivo por Socket.io para tickets creados, actualizados, eliminados y mensajes nuevos.
 
 ### Ticket historico
@@ -49,14 +50,30 @@ El panel centraliza administracion y herramientas para reducir opciones visibles
 ### Checklist
 
 - Checklist diario por maquinas, items, turnos y area asignada.
+- Selector compacto de maquina para celular/tablet, para abrir la captura sin depender de la lista lateral.
+- Accion rapida `All OK` para marcar todos los puntos activos como correctos.
 - Administrador de checklist para crear, editar, duplicar, ordenar y desactivar maquinas e items.
 - Llenado historico de checklist desde herramientas administrativas.
+
+### Inventario IT
+
+- Alta y edicion de activos IT por tipo de equipo.
+- Captura individual o multiple con generacion de etiquetas por prefijo.
+- Filtros por busqueda, categoria y estado.
+- Dashboard de inventario con totales y distribucion por marca, tipo, categoria y estado.
+- Configuracion de criterios por tipo de activo.
+- Administracion de marcas y categorias base.
+- Vista responsive:
+  - En escritorio se conserva la tabla completa.
+  - En celular se muestra una tarjeta por activo.
+  - Al tocar `Ver detalle`, la tarjeta despliega la informacion completa del activo: etiqueta, serie, equipo, categoria, usuario, correo, departamento, ubicacion, IP, sistema/RAM, condicion, cantidad, notas y mantenimiento.
 
 ### Kanban
 
 - Vista por columnas `OPEN`, `IN_PROGRESS` y `CLOSED`.
 - Movimiento de tickets por drag and drop.
 - Sincronizacion con API y eventos en vivo.
+- Columnas apilables en celular/tablet para evitar desbordes.
 
 ### MTTR
 
@@ -86,6 +103,19 @@ La UI tiene una base multilenguaje ligera sin dependencias externas.
   - Modal de crear ticket.
   - Ticket historico.
   - Algunas etiquetas de catalogos.
+
+### Diseno responsive
+
+La UI fue ajustada para uso en escritorio, tablet y celular.
+
+- Layout principal con sidebar lateral en escritorio.
+- Navegacion inferior fija en celular para aprovechar mejor el ancho disponible.
+- Header adaptable a textos largos y pantallas pequenas.
+- Espaciado del contenido ajustado para no quedar oculto por la navegacion movil.
+- Modales con ancho maximo y scroll interno para pantallas pequenas.
+- Formularios, filtros, botones y tarjetas ajustados para apilarse correctamente.
+- Dashboard y Kanban cambian de columnas fijas a grids responsivos.
+- Ticket detail adapta acciones, mensajes, adjuntos y composer para celular.
 
 ## Roles
 
@@ -165,6 +195,14 @@ VITE_API_URL=http://localhost:3000/api
 ## Estado actual
 
 El proyecto ya incluye una base funcional para operacion real: tickets, adjuntos, asignacion, historicos, checklist, dashboard, MTTR, importacion, catalogos ordenables y traduccion inicial.
+
+Ultimos cambios incluidos en la UI:
+
+- Adaptacion general responsive para tablet y celular.
+- Navegacion movil inferior.
+- Mejoras responsive en Dashboard, Tickets, Ticket Detail y Kanban.
+- Checklist con selector movil de maquina y boton `All OK`.
+- Inventario con tarjetas expandibles en movil y tabla completa en escritorio.
 
 Quedan areas naturales para seguir mejorando:
 
